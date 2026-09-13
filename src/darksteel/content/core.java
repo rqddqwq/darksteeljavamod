@@ -1,6 +1,8 @@
 package darksteel.content;
 
 import mindustry.*;
+import mindustry.content.Items;
+import mindustry.content.UnitTypes;
 import mindustry.entities.*;
 import mindustry.entities.abilities.*;
 import mindustry.entities.bullet.*;
@@ -35,9 +37,11 @@ import mindustry.world.draw.*;
 import mindustry.world.meta.*;
 
 import static mindustry.Vars.*;
-import darksteel.content.blocks;
+import static mindustry.type.ItemStack.with;
 
 public class core {
+    public static CoreBlock core;
+
     public static void load() {
       core = new CoreBlock("core"){{
             requirements(Category.effect, BuildVisibility.coreZoneOnly, with(Items.copper, 1000, Items.lead, 800));
