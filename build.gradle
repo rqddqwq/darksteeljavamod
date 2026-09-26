@@ -10,6 +10,7 @@ ext{
 
 repositories{
     mavenCentral()
+    maven { url = 'https://jitpack.io' }
 
     ivy{
         url = 'https://github.com/'
@@ -36,14 +37,22 @@ java{
 }
 
 dependencies {
-     compileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
-     compileOnly 'com.github.EB-wilson:TooManyItems:3.2'
- }
- jar {
-     archiveFileName = "${project.name}Desktop.jar"
-     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
-     from (layout.projectDirectory.files('mod.json', 'mod.hjson', 'icon.png'))
- }
+    compileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
+    // 修复TMI依赖：使用JitPack快照版本，解决3.2版本拉取失败
+    compileOnly 'com.github.EB-wilson:TooManyItems:master-SNAPSHOT'
+}
+
+jar {
+    archiveFileName = "${project.name}Desktop.jar"
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    from(projectDir) {
+        include "mod.json", "mod.hjson", "icon.png"
+    }
+    from("assets/") {
+        include "**"
+    }
+}
+
 tasks.register('jarAndroid'){
     dependsOn "jar"
     def projectName = project.name
@@ -71,31 +80,60 @@ tasks.register('jarAndroid'){
     }
 }
 
-jar{
-    archiveFileName = "${project.name}Desktop.jar"
-
-    from{
-        configurations.runtimeClasspath.collect{ it.isDirectory() ? it : zipTree(it) }
-    }
-
-    from(projectDir){
-        include "mod.hjson"
-    }
-
-    from("assets/"){
-        include "**"
-    }
-}
-
 tasks.register('deploy', Jar){
     def projectName = project.name
     dependsOn jarAndroid
-    dependsOn jar
     archiveFileName = "${projectName}.jar"
 
-    from{ [zipTree("build/libs/${projectName}Desktop.jar"), zipTree("build/libs/${projectName}Android.jar")] }
+    // 特殊编译：仅输出安卓dex版本包
+    from zipTree("build/libs/${projectName}Android.jar")
 
     doLast{
         delete "build/libs/${projectName}Android.jar"
     }
+}
+
+def gameFile = layout.projectDirectory.file('run/Mindustry.jar')
+def gameDataDir = layout.projectDirectory.dir('run/data')
+
+tasks.register('downloadGame') {
+    outputs.file(gameFile)
+
+    doLast {
+        def url = "https://github.com/Anuken/Mindustry/releases/download/${mindustryVersion}/Mindustry.jar"
+        def targetFile = gameFile.asFile
+        targetFile.parentFile.mkdirs()
+
+        URI.create(url).toURL().withInputStream { input ->
+            targetFile.withOutputStream { output ->
+                output << input
+            }
+        }
+    }
+}
+
+tasks.register('copyLibToMods', Copy) {
+    def renamedJar = "${project.name}.jar"
+    from jar into gameDataDir.dir('mods') rename { renamedJar }
+}
+
+tasks.register('removeMods', Delete) {
+    delete gameDataDir.file("mods/${project.name}.jar")
+}
+
+tasks.register('run', JavaExec) {
+    dependsOn 'downloadGame'
+    dependsOn 'copyLibToMods'
+
+    environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
+    mainClass = '-jar'
+    args = [gameFile.asFile.absolutePath]
+}
+
+tasks.register('runNoMod', JavaExec) {
+    dependsOn 'downloadGame', 'removeMods'
+
+    environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
+    mainClass = '-jar'
+    args = [gameFile.asFile.absolutePath]
 }
