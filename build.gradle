@@ -35,9 +35,12 @@ java{
     sourceCompatibility = JavaVersion.VERSION_17
 }
 
-dependencies{
-    compileOnly mindustryVersion == "be" ? "Anuken:MindustryBuilds:latest" : "Anuken:Mindustry:$mindustryVersion"
-    compileOnly 'org.jetbrains:annotations:24.1.0'
+dependencies {
+    compileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
+    implementation 'com.github.EB-wilson:TooManyItems:3.2'
+
+    testModImplementation sourceSets.main.output
+    testModCompileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
 }
 
 tasks.register('jarAndroid'){
