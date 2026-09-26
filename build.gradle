@@ -1,175 +1,97 @@
-plugins { id 'java' }
-import javax.inject.Inject
-interface Injected { @Inject ExecOperations getExecOperations() }
+apply plugin: "java"
 
-group = 'darksteel'
-version = '1.5.2'
+sourceSets.main.java.srcDirs = ["src"]
 
-def mindustryVersion = 'v159'
-def mindustryGameVersion = 'v159.7'
-
-java {
-    targetCompatibility = JavaVersion.VERSION_17
-    sourceCompatibility = JavaVersion.VERSION_17
+ext{
+    mindustryVersion = "v160"
+    isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+    sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
 }
 
-repositories {
+repositories{
     mavenCentral()
 
-    ivy {
+    ivy{
         url = 'https://github.com/'
-        patternLayout {
-            artifact(
-                (mindustryVersion == 'latest' ? '/[organisation]/[module]/releases/[revision]/download/dependencies.jar' :
-                mindustryVersion == 'be' ? '/[organisation]/[module]/releases/download/master/[revision].jar' :
-                '/[organisation]/[module]/releases/download/[revision]/dependencies.jar'))
+        patternLayout{ artifact(
+            (mindustryVersion == "latest" ? '/[organisation]/[module]/releases/[revision]/download/dependencies.jar' :
+            mindustryVersion == "be" ? '/[organisation]/[module]/releases/download/master/[revision].jar' :
+            '/[organisation]/[module]/releases/download/[revision]/dependencies.jar'))
         }
-        metadataSources { artifact() }
+        metadataSources{ artifact() }
 
-        content {
-            if (mindustryVersion == 'be') includeVersion("Anuken", "MindustryBuilds", "latest")
-            else includeVersion("Anuken", "Mindustry", mindustryVersion)
-        }
-    }
-
-    maven { url = 'https://jitpack.io' }
-}
-
-sourceSets {
-    testMod {
-        java.srcDirs = ['src/testMod/java']
-        resources.srcDirs = ['src/testMod/resources']
-    }
-}
-
-dependencies {
-    compileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
-    compileOnly 'com.github.EB-wilson:TooManyItems:3.2'
-
-    testModImplementation sourceSets.main.output
-    testModCompileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
-}
-
-
-jar {
-    archiveFileName = "${project.name}Desktop.jar"
-    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
-    from (layout.projectDirectory.files('mod.json', 'mod.hjson', 'icon.png'))
-}
-
-tasks.register('jarAndroid') {
-    dependsOn jar
-
-    def compileClasspath = configurations.compileClasspath
-    def runtimeClasspath = configurations.runtimeClasspath
-
-    def desktopJarFile = layout.buildDirectory.file("libs/${project.name}Desktop.jar")
-    def androidJarFile = layout.buildDirectory.file("libs/${project.name}Android.jar")
-
-    def sdkRoot = providers.environmentVariable('ANDROID_HOME').orElse(providers.environmentVariable('ANDROID_SDK_ROOT')).orNull
-    def isWindows = providers.systemProperty('os.name').get().toLowerCase().contains('win')
-
-    inputs.files(compileClasspath, runtimeClasspath, desktopJarFile)
-    outputs.file(androidJarFile)
-
-    def injected = objects.newInstance(Injected)
-    doLast {
-        if(!sdkRoot || !new File(sdkRoot).exists()) {
-            logger.lifecycle("==== Android SDK missing, skip dex conversion ====")
-            return
-        }
-        def platformRoot = new File("$sdkRoot/platforms/").listFiles()?.sort()?.reverse()?.find{ f -> new File(f, 'android.jar').exists() }
-        if(!platformRoot) {
-            logger.lifecycle("==== No android.jar found, skip dex conversion ====")
-            return
-        }
-
-        def dependencies = (compileClasspath.asList() + runtimeClasspath.asList() + [new File(platformRoot, 'android.jar')])
-                .collectMany{ ['--classpath', it.path] }
-
-        injected.execOperations.exec {
-            commandLine isWindows ? 'd8.bat' : 'd8'
-            args dependencies
-            args '--min-api', '14', '--output', androidJarFile.get().asFile.absolutePath, desktopJarFile.get().asFile.absolutePath
-            workingDir new File('build/libs')
-            standardOutput = System.out
-            errorOutput = System.err
-        }
-    }
-}
-
-tasks.register('deploy', Jar) {
-    dependsOn jarAndroid
-    archiveFileName = "${project.name}.jar"
-    def androidJarFile = layout.buildDirectory.file("libs/${project.name}Android.jar")
-    // 只打包安卓dex版本，移除PC desktop合并
-    from(androidJarFile.map { zipTree(it) })
-}
-
-tasks.register('jarTest', Jar) {
-    archiveFileName = "${project.name}-test.jar"
-    from sourceSets.testMod.output
-}
-
-def gameFile = layout.projectDirectory.file('run/Mindustry.jar')
-def gameDataDir = layout.projectDirectory.dir('run/data')
-
-tasks.register('downloadGame') {
-    outputs.file(gameFile)
-
-    doLast {
-        def url = "https://github.com/Anuken/Mindustry/releases/download/${mindustryGameVersion}/Mindustry.jar"
-        def targetFile = gameFile.asFile
-        targetFile.parentFile.mkdirs()
-
-        URI.create(url).toURL().withInputStream { input ->
-            targetFile.withOutputStream { output ->
-                output << input
+        content{
+            if(mindustryVersion == "be"){
+                includeVersion("Anuken", "MindustryBuilds", "latest")
+            }else{
+                includeVersion("Anuken", "Mindustry", mindustryVersion)
             }
         }
     }
 }
 
-tasks.register('copyLibToMods', Copy) {
-    def renamedJar = "${project.name}.jar"
-    from jar into gameDataDir.dir('mods') rename { renamedJar }
+java{
+    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_17
 }
 
-tasks.register('copyTestToMods', Copy) {
-    dependsOn jarTest
-    def renamedJar = "${project.name}-test.jar"
-    from jarTest into gameDataDir.dir('mods') rename { renamedJar }
+dependencies{
+    compileOnly mindustryVersion == "be" ? "Anuken:MindustryBuilds:latest" : "Anuken:Mindustry:$mindustryVersion"
+    compileOnly 'org.jetbrains:annotations:24.1.0'
 }
 
-tasks.register('removeMods', Delete) {
-    delete gameDataDir.file("mods/${project.name}.jar")
-    delete gameDataDir.file("mods/${project.name}-test.jar")
+tasks.register('jarAndroid'){
+    dependsOn "jar"
+    def projectName = project.name
+    def sdk = providers.environmentVariable('ANDROID_HOME').orElse(providers.environmentVariable('ANDROID_SDK_ROOT')).orNull
+    def win = providers.systemProperty('os.name').get().toLowerCase().contains("windows")
+
+    doLast{
+        if(!sdk || !new File(sdk).exists()){
+            logger.lifecycle("SDK missing, skip jarAndroid")
+            return
+        }
+
+        def platformRoot = new File("$sdk/platforms/").listFiles().sort().reverse().find{ f -> new File(f, "android.jar").exists() }
+        if(!platformRoot){
+            logger.lifecycle("No android.jar, skip jarAndroid")
+            return
+        }
+
+        def dependencies = (configurations.compileClasspath.asList() + configurations.runtimeClasspath.asList() + [new File(platformRoot, "android.jar")])
+                .collect{ "--classpath \"${it.path}\"" }.join(" ")
+
+        def d8 = win ? "d8.bat" : "d8"
+        def cmd = "$d8 $dependencies --min-api 21 --output ${projectName}Android.jar ${projectName}Desktop.jar"
+        cmd.execute(null, new File("build/libs")).waitForProcessOutput(System.out, System.err)
+    }
 }
 
-tasks.register('run', JavaExec) {
-    dependsOn 'downloadGame'
-    dependsOn 'copyLibToMods'
-    dependsOn 'copyTestToMods'
+jar{
+    archiveFileName = "${project.name}Desktop.jar"
 
-    environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
-    mainClass = '-jar'
-    args = [gameFile.asFile.absolutePath]
+    from{
+        configurations.runtimeClasspath.collect{ it.isDirectory() ? it : zipTree(it) }
+    }
+
+    from(projectDir){
+        include "mod.hjson"
+    }
+
+    from("assets/"){
+        include "**"
+    }
 }
 
-tasks.register('runMobile', JavaExec) {
-    dependsOn 'downloadGame'
-    dependsOn 'copyLibToMods'
-    dependsOn 'copyTestToMods'
+tasks.register('deploy', Jar){
+    def projectName = project.name
+    dependsOn jarAndroid
+    dependsOn jar
+    archiveFileName = "${projectName}.jar"
 
-    environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
-    mainClass = '-jar'
-    args = [gameFile.asFile.absolutePath, '-testMobile']
-}
+    from{ [zipTree("build/libs/${projectName}Desktop.jar"), zipTree("build/libs/${projectName}Android.jar")] }
 
-tasks.register('runNoMod', JavaExec) {
-    dependsOn 'downloadGame', 'removeMods'
-
-    environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
-    mainClass = '-jar'
-    args = [gameFile.asFile.absolutePath]
+    doLast{
+        delete "build/libs/${projectName}Android.jar"
+    }
 }
