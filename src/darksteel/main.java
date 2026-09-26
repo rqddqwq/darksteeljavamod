@@ -5,7 +5,7 @@ import mindustry.Vars;
 import mindustry.mod.Mods;
 import darksteel.content.DPlanets;
 import darksteel.content.Blocks;
-
+import dev.jojofr.multicrafter.MultiCrafterMod;
 
 public class main extends Mod {
     public static Mods.LoadedMod mod;
@@ -16,5 +16,9 @@ public class main extends Mod {
     // load core blocks before planets so defaultCore references e
     Blocks.load();
     DPlanets.load();
+    }
+    @Override
+    public void init(){
+    new MultiCrafterMod();
     }
 }
