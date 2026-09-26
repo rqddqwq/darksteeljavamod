@@ -39,8 +39,8 @@ repositories {
 
 sourceSets {
     testMod {
-        java.srcDirs = ['src/testMod/java']
-        resources.srcDirs = ['src/testMod/resources']
+        java.srcDirs = ['src']
+        resources.srcDirs = ['assets']
     }
 }
 
