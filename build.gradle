@@ -52,12 +52,52 @@ jar {
     from (layout.projectDirectory.files('mod.json', 'mod.hjson', 'icon.png'))
 }
 
-// ========= 删除整个 jarAndroid 任务 =========
+tasks.register('jarAndroid') {
+    dependsOn jar
+
+    def compileClasspath = configurations.compileClasspath
+    def runtimeClasspath = configurations.runtimeClasspath
+
+    def desktopJarFile = layout.buildDirectory.file("libs/${project.name}Desktop.jar")
+    def androidJarFile = layout.buildDirectory.file("libs/${project.name}Android.jar")
+
+    def sdkRoot = providers.environmentVariable('ANDROID_HOME').orElse(providers.environmentVariable('ANDROID_SDK_ROOT')).orNull
+    def isWindows = providers.systemProperty('os.name').get().toLowerCase().contains('win')
+
+    inputs.files(compileClasspath, runtimeClasspath, desktopJarFile)
+    outputs.file(androidJarFile)
+
+    doLast {
+        if(!sdkRoot || !new File(sdkRoot).exists()) throw new GradleException('No valid Android SDK found. Ensure that ANDROID_HOME is set to your Android SDK directory.')
+
+        def platformRoot = new File("$sdkRoot/platforms/").listFiles()?.sort()?.reverse()?.find{ f -> new File(f, 'android.jar').exists() }
+        if(!platformRoot) throw new GradleException('No android.jar found. Ensure that you have an Android platform installed.')
+
+        def dependencies = (compileClasspath.asList() + runtimeClasspath.asList() + [new File(platformRoot, 'android.jar')])
+                .collectMany{ ['--classpath', it.path] }
+
+        project.exec {
+            commandLine isWindows ? 'd8.bat' : 'd8'
+            args dependencies
+            args '--min-api', '14', '--output', androidJarFile.get().asFile.absolutePath, desktopJarFile.get().asFile.absolutePath
+
+            workingDir new File('build/libs')
+            standardOutput = System.out
+            errorOutput = System.err
+        }
+    }
+}
 
 tasks.register('deploy', Jar) {
     dependsOn jar
+    dependsOn jarAndroid
     archiveFileName = "${project.name}.jar"
-    from(jar.outputs.files.collect { zipTree(it) })
+
+    def desktopJarFile = layout.buildDirectory.file("libs/${project.name}Desktop.jar")
+    def androidJarFile = layout.buildDirectory.file("libs/${project.name}Android.jar")
+
+    from(desktopJarFile.map { zipTree(it) })
+    from(androidJarFile.map { zipTree(it) })
 }
 
 tasks.register('jarTest', Jar) {
@@ -70,10 +110,12 @@ def gameDataDir = layout.projectDirectory.dir('run/data')
 
 tasks.register('downloadGame') {
     outputs.file(gameFile)
+
     doLast {
         def url = "https://github.com/Anuken/Mindustry/releases/download/${mindustryVersion}/Mindustry.jar"
         def targetFile = gameFile.asFile
         targetFile.parentFile.mkdirs()
+
         URI.create(url).toURL().withInputStream { input ->
             targetFile.withOutputStream { output ->
                 output << input
@@ -111,7 +153,6 @@ tasks.register('run', JavaExec) {
 tasks.register('runMobile', JavaExec) {
     dependsOn 'downloadGame'
     dependsOn 'copyLibToMods'
-    //原代码 copyTestMod 不存在，改成 copyTestToMods
     dependsOn 'copyTestToMods'
 
     environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
@@ -121,6 +162,7 @@ tasks.register('runMobile', JavaExec) {
 
 tasks.register('runNoMod', JavaExec) {
     dependsOn 'downloadGame', 'removeMods'
+
     environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
     mainClass = '-jar'
     args = [gameFile.asFile.absolutePath]
