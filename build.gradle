@@ -36,13 +36,14 @@ java{
 }
 
 dependencies {
-    compileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
-    compileOnly 'com.github.EB-wilson:TooManyItems:3.2'
-
-    testModCompileOnly sourceSets.main.output
-    testModCompileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
-}
-
+     compileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
+     compileOnly 'com.github.EB-wilson:TooManyItems:3.2'
+ }
+ jar {
+     archiveFileName = "${project.name}Desktop.jar"
+     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+     from (layout.projectDirectory.files('mod.json', 'mod.hjson', 'icon.png'))
+ }
 tasks.register('jarAndroid'){
     dependsOn "jar"
     def projectName = project.name
