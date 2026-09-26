@@ -37,9 +37,9 @@ java{
 
 dependencies {
     compileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
-    implementation 'com.github.EB-wilson:TooManyItems:3.2'
+    compileOnly 'com.github.EB-wilson:TooManyItems:3.2'
 
-    testModImplementation sourceSets.main.output
+    testModCompileOnly sourceSets.main.output
     testModCompileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
 }
 
