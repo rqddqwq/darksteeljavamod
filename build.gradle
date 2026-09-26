@@ -3,11 +3,6 @@ apply plugin: "java"
 sourceSets.main.java.srcDirs = ["src"]
 
 ext{
-    // Mindustry version to depend on.
-    // Valid values:
-    // - latest: depend on the latest release of mindustry
-    // - be: depend on the very latest commit of mindustry
-    // - v<number>: depend on a specific version
     mindustryVersion = "v160"
     isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
     sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
@@ -16,14 +11,13 @@ ext{
 repositories {
     mavenCentral()
 
-    //Downloads the server-release JAR file from Mindustry releases; does not use any real repository. Surprisingly, this is the most reliable option.
     ivy {
         url = 'https://github.com/'
         patternLayout {
             artifact(
-                (mindustryVersion == 'latest' ? '/[organisation]/[module]/releases/[revision]/download/dependencies.jar' : // Latest stable release
-                mindustryVersion == 'be' ? '/[organisation]/[module]/releases/download/master/[revision].jar' : // Latest BE build
-                '/[organisation]/[module]/releases/download/[revision]/dependencies.jar')) // Specific release
+                (mindustryVersion == 'latest' ? '/[organisation]/[module]/releases/[revision]/download/dependencies.jar' :
+                mindustryVersion == 'be' ? '/[organisation]/[module]/releases/download/master/[revision].jar' :
+                '/[organisation]/[module]/releases/download/[revision]/dependencies.jar'))
         }
         metadataSources { artifact() }
 
@@ -45,7 +39,6 @@ sourceSets {
 
 dependencies {
     compileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
-
     compileOnly 'com.github.EB-wilson:TooManyItems:3.2'
 
     testModImplementation sourceSets.main.output
@@ -55,63 +48,17 @@ dependencies {
 
 jar {
     archiveFileName = "${project.name}Desktop.jar"
-
     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     from (layout.projectDirectory.files('mod.json', 'mod.hjson', 'icon.png'))
 }
 
-tasks.register('jarAndroid') {
-    dependsOn jar
-
-    // Configuration cache compatible
-    def compileClasspath = configurations.compileClasspath
-    def runtimeClasspath = configurations.runtimeClasspath
-
-    def desktopJarFile = layout.buildDirectory.file("libs/${project.name}Desktop.jar")
-    def androidJarFile = layout.buildDirectory.file("libs/${project.name}Android.jar")
-
-    def sdkRoot = providers.environmentVariable('ANDROID_HOME').orElse(providers.environmentVariable('ANDROID_SDK_ROOT')).orNull
-    def isWindows = providers.systemProperty('os.name').get().toLowerCase().contains('win')
-
-    inputs.files(compileClasspath, runtimeClasspath, desktopJarFile)
-    outputs.file(androidJarFile)
-
-    def injected = objects.newInstance(Injected)
-    doLast {
-        if(!sdkRoot || !new File(sdkRoot).exists()) throw new GradleException('No valid Android SDK found. Ensure that ANDROID_HOME is set to your Android SDK directory.')
-
-        def platformRoot = new File("$sdkRoot/platforms/").listFiles()?.sort()?.reverse()?.find{ f -> new File(f, 'android.jar').exists() }
-        if(!platformRoot) throw new GradleException('No android.jar found. Ensure that you have an Android platform installed.')
-
-        // Collect dependencies needed for desugaring
-        def dependencies = (compileClasspath.asList() + runtimeClasspath.asList() + [new File(platformRoot, 'android.jar')])
-                .collectMany{ ['--classpath', it.path] }
-
-        // Dex and desugar files - this requires d8 in your PATH
-        injected.execOperations.exec {
-            commandLine isWindows ? 'd8.bat' : 'd8'
-            args dependencies
-            args '--min-api', '14', '--output', androidJarFile.get().asFile.absolutePath, desktopJarFile.get().asFile.absolutePath
-
-            workingDir new File('build/libs')
-            standardOutput = System.out
-            errorOutput = System.err
-        }
-    }
-}
+// ========= 删除整个 jarAndroid 任务 =========
 
 tasks.register('deploy', Jar) {
-    dependsOn jarAndroid
     dependsOn jar
     archiveFileName = "${project.name}.jar"
-
-    def desktopJarFile = layout.buildDirectory.file("libs/${project.name}Desktop.jar")
-    def androidJarFile = layout.buildDirectory.file("libs/${project.name}Android.jar")
-
-    from(desktopJarFile.map { zipTree(it) })
-    from(androidJarFile.map { zipTree(it) })
+    from(jar.outputs.files.collect { zipTree(it) })
 }
-
 
 tasks.register('jarTest', Jar) {
     archiveFileName = "${project.name}-test.jar"
@@ -123,12 +70,10 @@ def gameDataDir = layout.projectDirectory.dir('run/data')
 
 tasks.register('downloadGame') {
     outputs.file(gameFile)
-
     doLast {
-        def url = "https://github.com/Anuken/Mindustry/releases/download/${mindustryGameVersion}/Mindustry.jar"
+        def url = "https://github.com/Anuken/Mindustry/releases/download/${mindustryVersion}/Mindustry.jar"
         def targetFile = gameFile.asFile
         targetFile.parentFile.mkdirs()
-
         URI.create(url).toURL().withInputStream { input ->
             targetFile.withOutputStream { output ->
                 output << input
@@ -166,7 +111,8 @@ tasks.register('run', JavaExec) {
 tasks.register('runMobile', JavaExec) {
     dependsOn 'downloadGame'
     dependsOn 'copyLibToMods'
-    dependsOn 'copyTestMod'
+    //原代码 copyTestMod 不存在，改成 copyTestToMods
+    dependsOn 'copyTestToMods'
 
     environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
     mainClass = '-jar'
@@ -175,7 +121,6 @@ tasks.register('runMobile', JavaExec) {
 
 tasks.register('runNoMod', JavaExec) {
     dependsOn 'downloadGame', 'removeMods'
-
     environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
     mainClass = '-jar'
     args = [gameFile.asFile.absolutePath]
