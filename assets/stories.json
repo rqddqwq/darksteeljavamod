@@ -1,0 +1,29 @@
+{
+  "test_dialog": {
+    "start": "intro",
+    "nodes": {
+      "intro": {
+        "speaker": "神秘工程师",
+        "text": "你好，旅行者。能听见我说话吗？",
+        "next": "ask"
+      },
+      "ask": {
+        "speaker": "神秘工程师",
+        "text": "我需要你的帮助，你愿意吗？",
+        "choices": [
+          { "text": "愿意", "next": "yes" },
+          { "text": "拒绝", "next": "no" }
+        ]
+      },
+      "yes": {
+        "speaker": "神秘工程师",
+        "text": "太好了！这点心意请收下。",
+        "reward": { "item": "copper", "amount": 500 }
+      },
+      "no": {
+        "speaker": "神秘工程师",
+        "text": "唉……我理解。再见。"
+      }
+    }
+  }
+}
