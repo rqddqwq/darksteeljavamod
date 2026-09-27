@@ -8,7 +8,7 @@ import mindustry.game.EventType;
 import mindustry.mod.Mod;
 import darksteel.DialogueSystem;
 
-public class DarkSteelMod extends Mod {
+public class DarkSteelMod {
 
     @Override
     public void loadContent() {
