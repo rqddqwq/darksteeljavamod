@@ -1,14 +1,16 @@
-package darksteel.dialogue;
+package darksteel.content;
 
 import arc.Core;
 import arc.files.Fi;
-import arc.math.Mathf;
+import arc.scene.event.ClickListener;
+import arc.scene.event.InputEvent;
+import arc.scene.event.Touchable;
 import arc.scene.ui.Dialog;
 import arc.scene.ui.Label;
 import arc.scene.ui.layout.Table;
 import arc.struct.Seq;
+import arc.util.Align;
 import arc.util.Log;
-import arc.util.Timer;
 import arc.util.serialization.Jval;
 import mindustry.Vars;
 import mindustry.gen.Player;
@@ -39,7 +41,7 @@ public class DialogueSystem {
     private static final String DIALOGUE_FILE = "dialogue.json";
 
     /** 打字机速度：每秒显示多少字 */
-    public static float typingSpeed = 10f;
+    public static float typingSpeed = 30f;
 
     // ============================================================
     // 加载
@@ -50,7 +52,7 @@ public class DialogueSystem {
 
         Fi file = findDialogueFile();
         if (file == null || !file.exists()) {
-
+            Log.warn("[Dialogue] 找不到 dialogue.json");
             return;
         }
 
@@ -58,7 +60,7 @@ public class DialogueSystem {
             Jval json = Jval.read(file.readString());
 
             if (!json.isArray()) {
-
+                Log.warn("[Dialogue] dialogue.json 顶层必须是数组");
                 return;
             }
 
@@ -85,10 +87,10 @@ public class DialogueSystem {
                 allDialogues.add(entry);
             }
 
-       
+            Log.info("[Dialogue] 已加载 @ 条对话", allDialogues.size);
 
         } catch (Exception e) {
-   
+            Log.err("[Dialogue] 解析失败", e);
         }
     }
 
@@ -137,48 +139,23 @@ public class DialogueSystem {
         Table table = new Table();
         dialog.cont.add(table).width(520).pad(20).row();
 
-        // 说话者
         table.add("[accent]" + entry.speaker + "：").left().row();
 
-        // 正文 Label
         Label textLabel = new Label("");
         textLabel.setWrap(true);
-        textLabel.setAlignment(arc.util.Align.left);
+        textLabel.setAlignment(Align.left);
         table.add(textLabel).width(480).left().padTop(8).row();
 
-        // 选项按钮容器（先空着）
         Table choiceTable = new Table();
         table.add(choiceTable).left().row();
 
-        // ============================================================
-        // 打字机状态
-        // ============================================================
         final String fullText = entry.text;
-        final int[] charIndex = {0};      // 当前显示到第几个字
-        final float[] charTimer = {0f};   // 累计时间
+        final float[] charTimer = {0f};
         final boolean[] finished = {false};
 
-        // ✅ 每帧更新：逐字显示
-        table.update(() -> {
-            if (!finished[0]) {
-                charTimer[0] += Core.graphics.getDeltaTime();
-
-                // 按 typingSpeed 计算应该显示多少字
-                int targetChars = (int) (charTimer[0] * typingSpeed);
-
-                if (targetChars >= fullText.length()) {
-                    targetChars = fullText.length();
-                    finished[0] = true;
-                    onFinish();
-                }
-
-                textLabel.setText(fullText.substring(0, targetChars));
-            }
-        });
-
-        // 打字结束回调
-        Runnable onFinish = () -> {
-            // 显示选项
+        // 打字结束回调（用数组绕过 lambda 引用问题）
+        final Runnable[] onFinish = new Runnable[1];
+        onFinish[0] = () -> {
             if (choices != null && choices.length > 0) {
                 choiceTable.clearChildren();
                 for (int i = 0; i < choices.length; i++) {
@@ -191,7 +168,6 @@ public class DialogueSystem {
                     }).size(460, 45).pad(4).row();
                 }
             } else {
-                // 没有选项：显示 "继续" 按钮
                 choiceTable.clearChildren();
                 choiceTable.button("继续", () -> {
                     dialog.hide();
@@ -202,17 +178,31 @@ public class DialogueSystem {
             }
         };
 
-        // ============================================================
-        // ✅ 点击对话框 → 跳过打字
-        // ============================================================
-        table.touchable = arc.scene.event.Touchable.enabled;
-        table.clicked(() -> {
+        // ✅ 每帧更新：逐字显示
+        table.update(() -> {
             if (!finished[0]) {
-                // 立即显示全部
-                charIndex[0] = fullText.length();
-                textLabel.setText(fullText);
-                finished[0] = true;
-                onFinish();
+                charTimer[0] += Core.graphics.getDeltaTime();
+                int targetChars = (int)(charTimer[0] * typingSpeed);
+
+                if (targetChars >= fullText.length()) {
+                    targetChars = fullText.length();
+                    finished[0] = true;
+                    onFinish[0].run();
+                }
+                textLabel.setText(fullText.substring(0, targetChars));
+            }
+        });
+
+        // ✅ 点击对话框 → 跳过打字
+        dialog.cont.touchable = Touchable.enabled;
+        dialog.cont.addListener(new ClickListener(){
+            @Override
+            public void clicked(InputEvent event, float x, float y){
+                if (!finished[0]) {
+                    textLabel.setText(fullText);
+                    finished[0] = true;
+                    onFinish[0].run();
+                }
             }
         });
 
