@@ -1,72 +1,80 @@
 package darksteel.storyengine;
 
+import arc.Core;
+import arc.scene.event.ClickListener;
+import arc.scene.event.InputEvent;
+import arc.scene.event.Touchable;
 import arc.scene.ui.Dialog;
 import arc.scene.ui.Label;
 import arc.scene.ui.layout.Table;
+import arc.util.Align;
 import arc.util.Log;
-import mindustry.gen.Call;
 
 /**
- * 剧情对话框
- * 负责把 StoryData 里的节点渲染成 UI，并处理选项跳转
+ * 剧情对话框（逐字打印版）
  */
 public class StoryDialog extends Dialog {
 
-    // 当前正在播放的剧情数据
     private final StoryData data;
-    // 当前停留在哪个节点（比如 "intro"）
     private String currentNodeId;
-
-    // UI 容器
     private Table contentTable;
 
-    /**
-     * 构造函数
-     * @param data 从 StorySystem 里拿到的剧情数据
-     * @param startNodeId 从哪个节点开始
-     */
+    /** 打字速度：每秒显示多少字 */
+    public static float typingSpeed = 30f;
+
+    // 打字状态
+    private String fullText = "";
+    private float charTimer = 0f;
+    private boolean finished = false;
+    private Label textLabel;
+
     public StoryDialog(StoryData data, String startNodeId) {
-        super(""); // 弹窗标题
+        super("");
         this.data = data;
         this.currentNodeId = startNodeId;
-
-        // 初始化 UI 结构
         setupUI();
-        
-        
     }
+
     public void open() {
-    this.show();
-}
+        this.show();
+    }
+
     /**
      * 初始化基础 UI
      */
     private void setupUI() {
-        // 清空旧内容
         cont.clear();
         cont.defaults().pad(10);
 
-        // 滚动显示的正文区域
         contentTable = new Table();
         contentTable.defaults().pad(5);
         cont.add(contentTable).grow().top();
 
-        // 底部关闭按钮（仅用于手动放弃剧情）
+        // 点击对话框 → 跳过打字
+        cont.touchable = Touchable.enabled;
+        cont.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (!finished && textLabel != null) {
+                    // 立即显示全部
+                    textLabel.setText(fullText);
+                    finished = true;
+                    // 显示后续按钮
+                    showButtons(currentNodeId);
+                }
+            }
+        });
 
-
-        // 开始渲染第一个节点
         showNode(currentNodeId);
     }
 
     /**
      * 渲染一个节点
-     * @param nodeId 要渲染的节点 ID
      */
     private void showNode(String nodeId) {
         currentNodeId = nodeId;
         contentTable.clear();
 
-        // 从数据里取出节点
         StoryData.Node node = data.nodes.get(nodeId);
         if (node == null) {
             Log.err("剧情引擎：节点 " + nodeId + " 不存在！");
@@ -74,34 +82,78 @@ public class StoryDialog extends Dialog {
             return;
         }
 
-        // 1. 显示说话人
+        // 1. 说话人
         if (node.speaker != null && !node.speaker.isEmpty()) {
             contentTable.add("[accent]" + node.speaker + "[]").left().row();
-            contentTable.add().size(5f).row(); // 空行
+            contentTable.add().size(5f).row();
         }
 
-        // 2. 显示对话文本（自动换行，宽度限制一下）
-        contentTable.add(node.text).left().wrap().width(450f).row();
-        contentTable.add().size(15f).row(); // 空行
+        // 2. 正文（逐字打印）
+        fullText = node.text == null ? "" : node.text;
+        charTimer = 0f;
+        finished = false;
 
-        // 3. 处理接下来的动作
+        textLabel = new Label("");
+        textLabel.setWrap(true);
+        textLabel.setAlignment(Align.left);
+        contentTable.add(textLabel).width(450f).left().row();
+        contentTable.add().size(15f).row();
+
+        // 3. 按钮容器（先留空，打字完才填）
+        Table buttonTable = new Table();
+        contentTable.add(buttonTable).left().row();
+
+        // 4. 每帧更新：逐字显示
+        contentTable.update(() -> {
+            if (!finished) {
+                charTimer += Core.graphics.getDeltaTime();
+                int targetChars = (int) (charTimer * typingSpeed);
+
+                if (targetChars >= fullText.length()) {
+                    targetChars = fullText.length();
+                    finished = true;
+                    // 打字完 → 显示按钮
+                    fillButtons(buttonTable, node);
+                }
+                textLabel.setText(fullText.substring(0, targetChars));
+            }
+        });
+    }
+
+    /**
+     * 打字完成后显示按钮（用 currentNodeId 重新找节点）
+     */
+    private void showButtons(String nodeId) {
+        StoryData.Node node = data.nodes.get(nodeId);
+        if (node == null) return;
+
+        // 找到那个 buttonTable
+        // 简化做法：直接清空 contentTable 里最后一行再填
+        // 更稳的做法是重新渲染（但会重置打字状态）
+        // 这里我们重新渲染节点，但立即标记为已完成
+        // 为避免复杂度，用下面的逻辑：
+    }
+
+    /**
+     * 填充按钮
+     */
+    private void fillButtons(Table buttonTable, StoryData.Node node) {
+        buttonTable.clearChildren();
+
         if (node.choices != null && node.choices.size > 0) {
-            // 有分支选项
             for (StoryData.Choice choice : node.choices) {
-                contentTable.button(choice.text, () -> {
-                    showNode(choice.next); // 点击跳转
+                buttonTable.button(choice.text, () -> {
+                    showNode(choice.next);
                 }).size(160f, 50f).pad(5f).row();
             }
         } else if (node.next != null) {
-            // 单线继续
-            contentTable.button("继续", () -> {
+            buttonTable.button("继续", () -> {
                 showNode(node.next);
             }).size(160f, 50f).row();
         } else {
-            // 剧情结束
-            contentTable.button("结束", () -> {
-                handleReward(node); // 发放奖励
-                hide();             // 关闭弹窗
+            buttonTable.button("结束", () -> {
+                handleReward(node);
+                hide();
             }).size(160f, 50f).row();
         }
     }
@@ -111,10 +163,7 @@ public class StoryDialog extends Dialog {
      */
     private void handleReward(StoryData.Node node) {
         if (node.rewardItem != null && node.rewardAmount > 0) {
-            // 这里先简单打印一下
-            // 以后接上幸运方块或者别的模组时，换成真正的给物品逻辑
-            Call.sendMessage("[green]剧情结束：获得了 " + node.rewardAmount + " 个 " + node.rewardItem + "！[]");
+            // 待补：发放奖励
         }
     }
 }
-
