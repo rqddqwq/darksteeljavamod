@@ -6,7 +6,7 @@ import mindustry.mod.Mods;
 import darksteel.content.DPlanets;
 import darksteel.content.Blocks;
 import dev.jojofr.multicrafter.MultiCrafterMod;
-import darksteel.content.DarkSteelMod;
+import darksteel.content.dia;
 
 public class main extends Mod {
     public static Mods.LoadedMod mod;
@@ -21,6 +21,6 @@ public class main extends Mod {
     @Override
     public void init(){
     new MultiCrafterMod();
-    new DarkSteelMod();
+    new dia();
     }
 }
