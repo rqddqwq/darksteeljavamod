@@ -126,7 +126,7 @@ public class DialogueSystem {
     }
 
     // ============================================================
-    // ✅ 打字机对话框
+    // 打字机对话框
     // ============================================================
     private static void showTypingDialog(DialogueEntry entry,
                                          Player player,
@@ -153,7 +153,6 @@ public class DialogueSystem {
         final float[] charTimer = {0f};
         final boolean[] finished = {false};
 
-        // 打字结束回调（用数组绕过 lambda 引用问题）
         final Runnable[] onFinish = new Runnable[1];
         onFinish[0] = () -> {
             if (choices != null && choices.length > 0) {
@@ -178,7 +177,7 @@ public class DialogueSystem {
             }
         };
 
-        // ✅ 每帧更新：逐字显示
+        // 每帧更新：逐字显示
         table.update(() -> {
             if (!finished[0]) {
                 charTimer[0] += Core.graphics.getDeltaTime();
@@ -193,7 +192,7 @@ public class DialogueSystem {
             }
         });
 
-        // ✅ 点击对话框 → 跳过打字
+        // 点击跳过打字
         dialog.cont.touchable = Touchable.enabled;
         dialog.cont.addListener(new ClickListener(){
             @Override
