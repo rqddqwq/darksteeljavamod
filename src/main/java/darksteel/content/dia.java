@@ -5,7 +5,7 @@ import arc.util.Log;
 import arc.util.Timer;
 import mindustry.Vars;
 import mindustry.game.EventType;
-import darksteel.DialogueSystem;
+import darksteel.content.DialogueSystem;
 
 public class dia {
 
