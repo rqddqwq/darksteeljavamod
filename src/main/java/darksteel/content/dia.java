@@ -5,26 +5,20 @@ import arc.util.Log;
 import arc.util.Timer;
 import mindustry.Vars;
 import mindustry.game.EventType;
-import mindustry.mod.Mod;
 import darksteel.DialogueSystem;
 
 public class dia {
 
-    @Override
-    public void loadContent() {
-        // 加载对话数据
+    // ✅ 静态方法，不继承 Mod
+    public static void loadContent() {
         DialogueSystem.load();
         Log.info("[DarkSteel] 对话数据加载完成");
     }
 
-    @Override
-    public void init() {
-
+    public static void init() {
         Events.on(EventType.ClientLoadEvent.class, e -> {
-            
             Timer.schedule(() -> {
                 Log.info("[DarkSteel] 尝试触发对话");
-
                 if (Vars.player != null) {
                     DialogueSystem.start("start", Vars.player);
                 } else {
