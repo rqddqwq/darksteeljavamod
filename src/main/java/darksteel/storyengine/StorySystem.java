@@ -20,7 +20,7 @@ public class StorySystem {
     public static void load() {
         stories.clear();
 
-        var file = Vars.tree.get("stories.json");
+        var file = Vars.tree.get("assets/stories.json");
         if (!file.exists()) {
             Log.err("剧情引擎：找不到 stories.json！");
             return;
