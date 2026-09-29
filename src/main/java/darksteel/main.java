@@ -21,9 +21,11 @@ public class main extends Mod {
         Blocks.load();
         DPlanets.load();
         }
-
-    @Override
+    public main(){
+    new MultiCrafterMod();
+    }
+  /*  @Override
     public void init() {
         new MultiCrafterMod();
-    }
+    }*/
     }
