@@ -8,7 +8,7 @@ import mindustry.mod.Mod;
 import mindustry.mod.Mods;
 import darksteel.content.DPlanets;
 import darksteel.content.Blocks;
-//import dev.jojofr.multicrafter.MultiCrafterMod;
+import multicrafter.multiCrafter;
 
 
 public class main extends Mod {
@@ -22,7 +22,7 @@ public class main extends Mod {
         DPlanets.load();
         }
     public main(){
-  //  new MultiCrafterMod();
+    new multiCrafter();
     }
   /*  @Override
     public void init() {
