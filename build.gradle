@@ -41,7 +41,6 @@ dependencies {
     compileOnly 'com.github.EB-wilson:TooManyItems:3.2'
 }
 
-// ✅ jarAndroid：没 SDK 就跳过
 tasks.register('jarAndroid') {
     dependsOn "jar"
     def projectName = project.name
@@ -84,20 +83,25 @@ jar {
     }
 }
 
-// ✅ deploy：没 Android jar 也能跑
+// ✅ 修复版 deploy
 tasks.register('deploy', Jar) {
     def projectName = project.name
+    def androidJar = file("build/libs/${projectName}Android.jar")
+    def desktopJar = file("build/libs/${projectName}Desktop.jar")
+
     dependsOn jar
     archiveFileName = "${projectName}.jar"
 
-    from { zipTree("build/libs/${projectName}Desktop.jar") }
+    // ✅ 配置阶段就把 from 定好
+    from { zipTree(desktopJar) }
+
+    if (androidJar.exists()) {
+        from { zipTree(androidJar) }
+    }
 
     doLast {
-        if (file("build/libs/${projectName}Android.jar").exists()) {
-            from { zipTree("build/libs/${projectName}Android.jar") }
-        }
-        delete {
-            delete "build/libs/${projectName}Android.jar"
+        if (androidJar.exists()) {
+            delete androidJar
         }
     }
 }
