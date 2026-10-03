@@ -1,182 +1,101 @@
-plugins { id 'java' }
+apply plugin: "java"
 
-import javax.inject.Inject
-interface Injected { @Inject ExecOperations getExecOperations() }
+sourceSets.main.java.srcDirs = ["src"]
 
-group = 'darksteel'
-version = '1.5.2'
+ext{
+    // Mindustry version to depend on.
+    // Valid values:
+    // - latest: depend on the latest release of mindustry
+    // - be: depend on the very latest commit of mindustry
+    // - v<number>: depend on a specific version
+    mindustryVersion = "v160"
+    isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+    sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+}
 
-def mindustryVersion = 'v159'
-def mindustryGameVersion = 'v159.7'
+repositories{
+    mavenCentral()
+    maven { url = 'https://jitpack.io' }
+    //Downloads the dependencies JAR file from Mindustry releases; does not use any real repository. Surprisingly, this is the most reliable option.
+    ivy{
+        url = 'https://github.com/'
+        patternLayout{ artifact(
+            (mindustryVersion == "latest" ? '/[organisation]/[module]/releases/[revision]/download/dependencies.jar' : //latest stable release
+            mindustryVersion == "be" ? '/[organisation]/[module]/releases/download/master/[revision].jar' : //latest commit (BE)
+            '/[organisation]/[module]/releases/download/[revision]/dependencies.jar')) //specific release
+        }
+        metadataSources{ artifact() }
 
-java {
+        content{
+            if(mindustryVersion == "be"){
+                //BE artifact version is always 'latest'
+                includeVersion("Anuken", "MindustryBuilds", "latest")
+            }else{
+                includeVersion("Anuken", "Mindustry", mindustryVersion)
+            }
+        }
+    }
+}
+
+java{
     targetCompatibility = JavaVersion.VERSION_17
     sourceCompatibility = JavaVersion.VERSION_17
 }
 
-repositories {
-    mavenCentral()
-
-    ivy {
-        url = 'https://github.com/'
-        patternLayout {
-            artifact(
-                (mindustryVersion == 'latest'
-                    ? '/[organisation]/[module]/releases/[revision]/download/dependencies.jar'
-                    : mindustryVersion == 'be'
-                        ? '/[organisation]/[module]/releases/download/master/[revision].jar'
-                        : '/[organisation]/[module]/releases/download/[revision]/dependencies.jar'))
-        }
-        metadataSources { artifact() }
-        content {
-            if (mindustryVersion == 'be') includeVersion("Anuken", "MindustryBuilds", "latest")
-            else includeVersion("Anuken", "Mindustry", mindustryVersion)
-        }
-    }
-
-    maven { url = 'https://jitpack.io' }
-}
-
-sourceSets {
-    testMod {
-        java.srcDirs = ['src']
-        resources.srcDirs = ['assets']
-    }
-}
-
-dependencies {
-    implementation files("libs/MultiCrafterLib-v160.jar")
-    compileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
+dependencies{
+    compileOnly mindustryVersion == "be" ? "Anuken:MindustryBuilds:latest" : "Anuken:Mindustry:$mindustryVersion"
     compileOnly 'com.github.EB-wilson:TooManyItems:3.2'
-
-    testModImplementation sourceSets.main.output
-    testModCompileOnly mindustryVersion == 'be' ? 'Anuken:MindustryBuilds:latest' : "Anuken:Mindustry:$mindustryVersion"
 }
 
-// 桌面版 JAR
-jar {
+tasks.register('jarAndroid'){
+    dependsOn "jar"
+    def projectName = project.name
+
+    doLast{
+        if(!sdkRoot || !new File(sdkRoot).exists()) throw new GradleException("No valid Android SDK found. Ensure that ANDROID_HOME is set to your Android SDK directory.")
+
+        def platformRoot = new File("$sdkRoot/platforms/").listFiles().sort().reverse().find{ f -> new File(f, "android.jar").exists() }
+
+        if(!platformRoot) throw new GradleException("No android.jar found. Ensure that you have an Android platform installed.")
+
+        //collect dependencies needed for desugaring
+        def dependencies = (configurations.compileClasspath.asList() + configurations.runtimeClasspath.asList() + [new File(platformRoot, "android.jar")]).collect{ "--classpath $it.path" }.join(" ")
+
+        def d8 = isWindows ? "d8.bat" : "d8"
+
+        //dex and desugar files - this requires d8 in your PATH
+        "$d8 $dependencies --min-api 21 --output ${projectName}Android.jar ${projectName}Desktop.jar"
+                .execute(null, new File("build/libs")).waitForProcessOutput(System.out, System.err)
+    }
+}
+
+jar{
     archiveFileName = "${project.name}Desktop.jar"
-    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
-    from (layout.projectDirectory.files('mod.json', 'mod.hjson', 'icon.png'))
+
+    from{
+        configurations.runtimeClasspath.collect{ it.isDirectory() ? it : zipTree(it) }
+    }
+
+    from(projectDir){
+        include "mod.hjson"
+    }
+
+    from("assets/"){
+        include "**"
+    }
 }
 
-// Android 版 JAR（通过 d8 把桌面 JAR 转换为 dex）
-tasks.register('jarAndroid') {
+tasks.register('deploy', Jar){
+    def projectName = project.name
+    dependsOn jarAndroid
     dependsOn jar
+    archiveFileName = "${projectName}.jar"
 
-    def compileClasspath = configurations.compileClasspath
-    def runtimeClasspath = configurations.runtimeClasspath
-    def desktopJarFile = layout.buildDirectory.file("libs/${project.name}Desktop.jar")
-    def androidJarFile = layout.buildDirectory.file("libs/${project.name}Android.jar")
+    from{ [zipTree("build/libs/${projectName}Desktop.jar"), zipTree("build/libs/${projectName}Android.jar")] }
 
-    // 使用 provider 延迟获取，避免 configuration cache 问题
-    def sdkRoot = providers.environmentVariable('ANDROID_HOME')
-            .orElse(providers.environmentVariable('ANDROID_SDK_ROOT'))
-    def isWindows = providers.systemProperty('os.name').get().toLowerCase().contains('win')
-
-    inputs.files(compileClasspath, runtimeClasspath, desktopJarFile)
-    outputs.file(androidJarFile)
-
-    def injected = objects.newInstance(Injected)
-
-    doLast {
-        def sdk = sdkRoot.orNull
-        if (!sdk || !new File(sdk).exists())
-            throw new GradleException('未找到有效的 Android SDK，请设置 ANDROID_HOME 或 ANDROID_SDK_ROOT 环境变量。')
-
-        def platformRoot = new File("$sdk/platforms/").listFiles()?.sort()?.reverse()
-                ?.find { f -> new File(f, 'android.jar').exists() }
-        if (!platformRoot)
-            throw new GradleException('未找到 android.jar，请安装至少一个 Android Platform。')
-
-        def dependencies = (compileClasspath.asList() + runtimeClasspath.asList()
-                + [new File(platformRoot, 'android.jar')])
-                .collectMany { ['--classpath', it.path] }
-
-        androidJarFile.get().asFile.parentFile.mkdirs()
-
-        injected.execOperations.exec {
-            commandLine isWindows ? 'd8.bat' : 'd8'
-            args dependencies
-            args '--min-api', '14'
-            args '--output', androidJarFile.get().asFile.absolutePath
-            args desktopJarFile.get().asFile.absolutePath
-            workingDir new File('build/libs')
-            standardOutput = System.out
-            errorOutput = System.err
+    doLast{
+        delete{
+            delete "build/libs/${projectName}Android.jar"
         }
     }
-}
-
-// 最终打包（同时包含桌面和 Android 两个 dex，Mindustry 会按平台选择）
-tasks.register('deploy', Jar) {
-    dependsOn jarAndroid, jar
-    archiveFileName = "${project.name}.jar"
-
-    def desktopJarFile = layout.buildDirectory.file("libs/${project.name}Desktop.jar")
-    def androidJarFile = layout.buildDirectory.file("libs/${project.name}Android.jar")
-
-    from(desktopJarFile.map { zipTree(it) })
-    from(androidJarFile.map { zipTree(it) })
-
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-// 单独打包测试模组
-tasks.register('jarTest', Jar) {
-    archiveFileName = "${project.name}-test.jar"
-    from sourceSets.testMod.output
-}
-
-// 游戏运行相关
-def gameFile = layout.projectDirectory.file('run/Mindustry.jar')
-def gameDataDir = layout.projectDirectory.dir('run/data')
-
-tasks.register('downloadGame') {
-    outputs.file(gameFile)
-    doLast {
-        def url = "https://github.com/Anuken/Mindustry/releases/download/${mindustryGameVersion}/Mindustry.jar"
-        def targetFile = gameFile.asFile
-        targetFile.parentFile.mkdirs()
-        if (targetFile.exists() && targetFile.length() > 0) return
-        URI.create(url).toURL().withInputStream { input ->
-            targetFile.withOutputStream { output -> output << input }
-        }
-    }
-}
-
-tasks.register('copyLibToMods', Copy) {
-    from deploy into gameDataDir.dir('mods') rename { "${project.name}.jar" }
-}
-
-tasks.register('copyTestToMods', Copy) {
-    dependsOn jarTest
-    from jarTest into gameDataDir.dir('mods') rename { "${project.name}-test.jar" }
-}
-
-tasks.register('removeMods', Delete) {
-    delete gameDataDir.file("mods/${project.name}.jar")
-    delete gameDataDir.file("mods/${project.name}-test.jar")
-}
-
-tasks.register('run', JavaExec) {
-    dependsOn 'downloadGame', 'copyLibToMods', 'copyTestToMods'
-    environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
-    classpath = files(gameFile)
-    mainClass = 'mindustry.desktop.Mindustry'
-}
-
-tasks.register('runMobile', JavaExec) {
-    dependsOn 'downloadGame', 'copyLibToMods', 'copyTestToMods'  // 修正拼写
-    environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
-    classpath = files(gameFile)
-    mainClass = 'mindustry.desktop.Mindustry'
-    args '-testMobile'
-}
-
-tasks.register('runNoMod', JavaExec) {
-    dependsOn 'downloadGame', 'removeMods'
-    environment 'MINDUSTRY_DATA_DIR', gameDataDir.asFile.absolutePath
-    classpath = files(gameFile)
-    mainClass = 'mindustry.desktop.Mindustry'
 }
