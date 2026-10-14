@@ -15,7 +15,7 @@ import mindustry.type.Planet;
 import mindustry.ctype.*;
 import darksteel.content.DPlanets;
 import darksteel.content.Blocks;
-import Multicrafter.MultiCraftMod;
+import dev.jojofr.multicrafter.MultiCraftMod;
 
 public class main extends Mod {
 
