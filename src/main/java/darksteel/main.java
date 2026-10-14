@@ -13,7 +13,6 @@ import mindustry.content.TechTree.TechNode;
 import mindustry.type.ItemStack;
 import mindustry.type.Planet;
 import mindustry.ctype.*;
-import darksteel.content.DPlanets;
 import darksteel.content.Blocks;
 import dev.jojofr.multicrafter.MultiCrafterMod;
 
@@ -25,7 +24,7 @@ public class main extends Mod {
     public void loadContent() {
         mod = Vars.mods.getMod(this.getClass());
         Blocks.load();
-        DPlanets.load();
+      //  DPlanets.load();
     }
 
     @Override
