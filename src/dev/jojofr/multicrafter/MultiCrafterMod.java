@@ -7,16 +7,11 @@ import mindustry.mod.ClassMap;
 
 public class MultiCrafterMod {
 
-    // ✅ 静态方法，可以在 Main 的 static 块里调用
-    public static void registerTypes() {
+    public MultiCrafterMod() {
         ClassMap.classes.put("MultiCrafter", MultiCrafterBlock.class);
         ClassMap.classes.put("AttributeMultiCrafter", AttributeMultiCrafterBlock.class);
         ClassMap.classes.put("DrawRecipe", DrawRecipe.class);
-
-        Log.info("[MultiCrafter] 类型已注册");
-    }
-
-    public MultiCrafterMod() {
-        registerTypes();
+        
+        Log.info("[MultiCrafter] Library successfully loaded!");
     }
 }

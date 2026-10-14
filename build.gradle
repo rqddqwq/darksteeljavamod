@@ -2,106 +2,100 @@ apply plugin: "java"
 
 sourceSets.main.java.srcDirs = ["src"]
 
-ext {
+ext{
+    // Mindustry version to depend on.
+    // Valid values:
+    // - latest: depend on the latest release of mindustry
+    // - be: depend on the very latest commit of mindustry
+    // - v<number>: depend on a specific version
     mindustryVersion = "v160"
     isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
     sdkRoot = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
 }
 
-repositories {
+repositories{
     mavenCentral()
     maven { url = 'https://jitpack.io' }
-    ivy {
+    //Downloads the dependencies JAR file from Mindustry releases; does not use any real repository. Surprisingly, this is the most reliable option.
+    ivy{
         url = 'https://github.com/'
-        patternLayout {
-            artifact(
-                (mindustryVersion == "latest" ? '/[organisation]/[module]/releases/[revision]/download/dependencies.jar' :
-                mindustryVersion == "be" ? '/[organisation]/[module]/releases/download/master/[revision].jar' :
-                '/[organisation]/[module]/releases/download/[revision]/dependencies.jar')
-            )
+        patternLayout{ artifact(
+            (mindustryVersion == "latest" ? '/[organisation]/[module]/releases/[revision]/download/dependencies.jar' : //latest stable release
+            mindustryVersion == "be" ? '/[organisation]/[module]/releases/download/master/[revision].jar' : //latest commit (BE)
+            '/[organisation]/[module]/releases/download/[revision]/dependencies.jar')) //specific release
         }
-        metadataSources { artifact() }
-        content {
-            if (mindustryVersion == "be") {
+        metadataSources{ artifact() }
+
+        content{
+            if(mindustryVersion == "be"){
+                //BE artifact version is always 'latest'
                 includeVersion("Anuken", "MindustryBuilds", "latest")
-            } else {
+            }else{
                 includeVersion("Anuken", "Mindustry", mindustryVersion)
             }
         }
     }
 }
 
-java {
+java{
     targetCompatibility = JavaVersion.VERSION_17
     sourceCompatibility = JavaVersion.VERSION_17
 }
 
-dependencies {
+dependencies{
     compileOnly mindustryVersion == "be" ? "Anuken:MindustryBuilds:latest" : "Anuken:Mindustry:$mindustryVersion"
     compileOnly 'com.github.EB-wilson:TooManyItems:3.2'
 }
 
-tasks.register('jarAndroid') {
+tasks.register('jarAndroid'){
     dependsOn "jar"
     def projectName = project.name
 
-    doLast {
-        if (!sdkRoot || !new File(sdkRoot).exists()) {
-            println("Skipping jarAndroid: no Android SDK found.")
-            return
-        }
+    doLast{
+        if(!sdkRoot || !new File(sdkRoot).exists()) throw new GradleException("No valid Android SDK found. Ensure that ANDROID_HOME is set to your Android SDK directory.")
 
-        def platformRoot = new File("$sdkRoot/platforms/").listFiles().sort().reverse().find { f -> new File(f, "android.jar").exists() }
+        def platformRoot = new File("$sdkRoot/platforms/").listFiles().sort().reverse().find{ f -> new File(f, "android.jar").exists() }
 
-        if (!platformRoot) {
-            println("Skipping jarAndroid: no android.jar found.")
-            return
-        }
+        if(!platformRoot) throw new GradleException("No android.jar found. Ensure that you have an Android platform installed.")
 
-        def dependencies = (configurations.compileClasspath.asList() + configurations.runtimeClasspath.asList() + [new File(platformRoot, "android.jar")]).collect { "--classpath $it.path" }.join(" ")
+        //collect dependencies needed for desugaring
+        def dependencies = (configurations.compileClasspath.asList() + configurations.runtimeClasspath.asList() + [new File(platformRoot, "android.jar")]).collect{ "--classpath $it.path" }.join(" ")
 
         def d8 = isWindows ? "d8.bat" : "d8"
 
+        //dex and desugar files - this requires d8 in your PATH
         "$d8 $dependencies --min-api 21 --output ${projectName}Android.jar ${projectName}Desktop.jar"
                 .execute(null, new File("build/libs")).waitForProcessOutput(System.out, System.err)
     }
 }
 
-jar {
+jar{
     archiveFileName = "${project.name}Desktop.jar"
 
-    from {
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    from{
+        configurations.runtimeClasspath.collect{ it.isDirectory() ? it : zipTree(it) }
     }
 
-    from(projectDir) {
+    from(projectDir){
         include "mod.hjson"
     }
 
-    from("assets/") {
+    from("assets/"){
         include "**"
     }
 }
 
-// ✅ 修复版 deploy
-tasks.register('deploy', Jar) {
+tasks.register('deploy', Jar){
     def projectName = project.name
-    def androidJar = file("build/libs/${projectName}Android.jar")
-    def desktopJar = file("build/libs/${projectName}Desktop.jar")
-
+    dependsOn jarAndroid
     dependsOn jar
     archiveFileName = "${projectName}.jar"
 
-    // ✅ 配置阶段就把 from 定好
-    from { zipTree(desktopJar) }
+    from{ [zipTree("build/libs/${projectName}Desktop.jar"), zipTree("build/libs/${projectName}Android.jar")] }
 
-    if (androidJar.exists()) {
-        from { zipTree(androidJar) }
-    }
-
-    doLast {
-        if (androidJar.exists()) {
-            delete androidJar
+    doLast{
+        delete{
+            delete "build/libs/${projectName}Android.jar"
         }
     }
 }

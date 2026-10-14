@@ -26,7 +26,9 @@ public class AttributeMultiCrafterBlock extends MultiCrafterBlock {
     @Override
     public void drawPlace(int x, int y, int rotation, boolean valid) {
         super.drawPlace(x, y, rotation, valid);
+        
         if (!displayEfficiency) return;
+        
         drawPlaceText(Core.bundle.format("bar.efficiency",
             (int) ((baseEfficiency + Math.min(maxBoost, boostScale * sumAttribute(attribute, x, y))) * 100f)), x, y, valid);
     }
@@ -34,46 +36,25 @@ public class AttributeMultiCrafterBlock extends MultiCrafterBlock {
     @Override
     public void setBars() {
         super.setBars();
-        if (!displayEfficiency) return;
         
-        // ✅ lambda 改匿名内部类
-        addBar("efficiency", new arc.func.Func<AttributeMultiCrafterBuild, Bar>() {
-            @Override
-            public Bar get(final AttributeMultiCrafterBuild entity) {
-                return new Bar(
-                    new arc.func.Prov<CharSequence>() {
-                        @Override
-                        public CharSequence get() {
-                            return Core.bundle.format("bar.efficiency", (int) (entity.efficiencyMultiplier() * 100 * displayEfficiencyScale));
-                        }
-                    },
-                    new arc.func.Prov<arc.graphics.Color>() {
-                        @Override
-                        public arc.graphics.Color get() { return Pal.lightOrange; }
-                    },
-                    new arc.func.Floatp() {
-                        @Override
-                        public float get() { return entity.efficiencyMultiplier(); }
-                    }
-                );
-            }
-        });
+        if(!displayEfficiency) return;
+        
+        addBar("efficiency", (AttributeMultiCrafterBuild entity) ->
+            new Bar(
+                () -> Core.bundle.format("bar.efficiency", (int) (entity.efficiencyMultiplier() * 100 * displayEfficiencyScale)),
+                () -> Pal.lightOrange,
+                entity::efficiencyMultiplier));
     }
     
     @Override
     public boolean canPlaceOn(Tile tile, Team team, int rotation) {
-        // ✅ lambda 改匿名内部类
-        return baseEfficiency + tile.getLinkedTilesAs(this, tempTiles).sumf(new arc.func.Floatf<Tile>() {
-            @Override
-            public float get(Tile other) {
-                return other.floor().attributes.get(attribute);
-            }
-        }) >= minEfficiency;
+        return baseEfficiency + tile.getLinkedTilesAs(this, tempTiles).sumf(other -> other.floor().attributes.get(attribute)) >= minEfficiency;
     }
     
     @Override
     public void setStats() {
         super.setStats();
+        
         stats.add(baseEfficiency <= 0.0001f ? Stat.tiles : Stat.affinities, attribute, floating, boostScale * size * size, !displayEfficiency);
     }
     
@@ -83,7 +64,7 @@ public class AttributeMultiCrafterBlock extends MultiCrafterBlock {
         private float currentBoostScale = boostScale;
         private float currentMaxBoost = maxBoost;
         private float currentMinEfficiency = minEfficiency;
-        
+
         public float attrsum;
         
         @Override
@@ -99,12 +80,12 @@ public class AttributeMultiCrafterBlock extends MultiCrafterBlock {
         public float efficiencyScale() {
             return scaleLiquidConsumption ? efficiencyMultiplier() : super.efficiencyScale();
         }
-        
+
         @Override
         public boolean productionValid() {
             return super.productionValid() && efficiencyMultiplier() > 0f;
         }
-        
+
         @Override
         public void pickedUp() {
             attrsum = 0f;
@@ -114,17 +95,20 @@ public class AttributeMultiCrafterBlock extends MultiCrafterBlock {
         @Override
         public void onProximityUpdate() {
             super.onProximityUpdate();
+            
             attrsum = sumAttribute(currentAttribute, tile.x, tile.y);
         }
         
         @Override
         protected void setCurrentRecipe(Recipe recipe, boolean showEffect) {
             super.setCurrentRecipe(recipe, showEffect);
+            
             currentAttribute = recipe.attribute != null ? recipe.attribute : attribute;
             currentBaseEfficiency = !Float.isNaN(recipe.baseEfficiency) ? recipe.baseEfficiency : baseEfficiency;
             currentBoostScale = !Float.isNaN(recipe.boostScale) ? recipe.boostScale : boostScale;
             currentMaxBoost = !Float.isNaN(recipe.maxBoost) ? recipe.maxBoost : maxBoost;
             currentMinEfficiency = !Float.isNaN(recipe.minEfficiency) ? recipe.minEfficiency : minEfficiency;
+            
             attrsum = sumAttribute(currentAttribute, tile.x, tile.y);
         }
     }
