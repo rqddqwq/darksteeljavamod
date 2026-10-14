@@ -15,13 +15,6 @@ import mindustry.world.draw.DrawBlock;
 import mindustry.world.draw.DrawDefault;
 import mindustry.world.meta.Attribute;
 
-/**
- * Internal representation of a recipe used for JSON deserialization.
- * <p>
- * This is necessary because {@link Recipe} extends {@link mindustry.ctype.UnlockableContent UnlockableContent}, which by default expects a String name during deserialization.
- * <p>
- * Java modders should use {@link Recipe} directly instead of this class.
- */
 @SuppressWarnings("DeprecatedIsStillUsed")
 public class JsonRecipe {
     public String name = "empty-recipe";
@@ -69,10 +62,8 @@ public class JsonRecipe {
             if (jsonData.isString()) this.parent = jsonData.asString();
             else if (jsonData.isObject()) {
                 this.parent = jsonData.getString("parent", null);
-                
                 if (jsonData.has("requirements"))
                     this.requirements = json.readValue(ItemStack[].class, jsonData.get("requirements"));
-                
                 if (jsonData.has("objectives"))
                     this.objectives = json.readValue(Objectives.Objective[].class, jsonData.get("objectives"));
             }
@@ -113,14 +104,25 @@ public class JsonRecipe {
         if (this.research != null && this.research.parent != null) {
             String researchName = this.research.parent;
             
-            TechTree.TechNode lastNode = TechTree.all.find(node -> node.content == recipe);
+            // ✅ lambda 改匿名内部类
+            TechTree.TechNode lastNode = TechTree.all.find(new arc.func.Boolf<TechTree.TechNode>() {
+                @Override
+                public boolean get(TechTree.TechNode node) {
+                    return node.content == recipe;
+                }
+            });
             if (lastNode != null) lastNode.remove();
             
-            TechTree.TechNode parent = TechTree.all.find(techNode ->
-                techNode.content.name.equals(researchName)
-                    || (recipe.minfo != null && recipe.minfo.mod != null && techNode.content.name.equals(recipe.minfo.mod.name +"-"+ researchName))
-                    || techNode.content.name.equals(SaveVersion.mapFallback(researchName))
-            );
+            final String finalResearchName = researchName;
+            // ✅ lambda 改匿名内部类
+            TechTree.TechNode parent = TechTree.all.find(new arc.func.Boolf<TechTree.TechNode>() {
+                @Override
+                public boolean get(TechTree.TechNode techNode) {
+                    return techNode.content.name.equals(finalResearchName)
+                        || (recipe.minfo != null && recipe.minfo.mod != null && techNode.content.name.equals(recipe.minfo.mod.name + "-" + finalResearchName))
+                        || techNode.content.name.equals(SaveVersion.mapFallback(finalResearchName));
+                }
+            });
             
             if (parent == null) {
                 Log.warn("Content '@' isn't in the tech tree, but '@' requires it.", researchName, recipe.name);
@@ -147,10 +149,8 @@ public class JsonRecipe {
     
     private static String prefixName(String name, Block owner) {
         if (owner == null || owner.minfo == null || owner.minfo.mod == null) return name;
-        
         String modName = owner.minfo.mod.name;
         String prefix = modName + "-";
-        
         return name.startsWith(prefix) ? name : prefix + name;
     }
 }

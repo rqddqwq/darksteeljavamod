@@ -1,7 +1,10 @@
 package dev.jojofr.multicrafter;
 
 import arc.Core;
+import arc.func.Cons;
+import arc.func.Cons2;
 import arc.func.Func;
+import arc.func.Prov;
 import arc.graphics.g2d.Draw;
 import arc.graphics.g2d.TextureRegion;
 import arc.math.Angles;
@@ -50,10 +53,8 @@ import mindustry.world.meta.Stat;
 import mindustry.world.meta.StatValue;
 import mindustry.world.meta.StatValues;
 
-// TODO improve the selection menu
 public class MultiCrafterBlock extends Block {
     public transient Seq<Recipe> recipes = new Seq<>();
-    /** Only intended for internal use and JSON parsing */
     public Seq<JsonRecipe> jsonRecipes;
     public boolean autoSelectRecipe = false;
     
@@ -87,7 +88,13 @@ public class MultiCrafterBlock extends Block {
         
         flags = EnumSet.of(BlockFlag.factory);
         
-        config(Integer.class, (build, value) -> ((MultiCrafterBuild) build).setCurrentRecipe(value));
+        // ✅ lambda 改匿名内部类
+        config(Integer.class, new Cons2<Building, Integer>() {
+            @Override
+            public void get(Building build, Integer value) {
+                ((MultiCrafterBuild) build).setCurrentRecipe(value.intValue());
+            }
+        });
     }
     
     @Override
@@ -96,8 +103,8 @@ public class MultiCrafterBlock extends Block {
         drawer.load(this);
         
         topRegion = findFactoryRegion("-top");
-        outRegion =  findFactoryRegion("-out");
-        inRegion =  findFactoryRegion("-in");
+        outRegion = findFactoryRegion("-out");
+        inRegion = findFactoryRegion("-in");
     }
     
     @Override
@@ -108,7 +115,7 @@ public class MultiCrafterBlock extends Block {
         }
         
         if (recipes.isEmpty())
-            throw new IllegalStateException("The block "+ name +" does not have recipes! It must have at least one recipe.");
+            throw new IllegalStateException("The block " + name + " does not have recipes! It must have at least one recipe.");
         
         configurable = !autoSelectRecipe;
         
@@ -154,68 +161,97 @@ public class MultiCrafterBlock extends Block {
         }
         
         if (consumeItems) {
-            consume(new ConsumeItemDynamic(
-                (MultiCrafterBuild build) -> build.currentRecipe == null ? ItemStack.empty : build.currentRecipe.input.getItems()
-            ));
+            // ✅ lambda 改匿名内部类
+            consume(new ConsumeItemDynamic(new Func<Building, ItemStack[]>() {
+                @Override
+                public ItemStack[] get(Building build) {
+                    MultiCrafterBuild b = (MultiCrafterBuild) build;
+                    return b.currentRecipe == null ? ItemStack.empty : b.currentRecipe.input.getItems();
+                }
+            }));
         }
         
         if (consumeLiquids) {
-            consume(new ConsumeLiquidsDynamic(
-                (MultiCrafterBuild build) -> build.currentRecipe == null ? LiquidStack.empty : build.currentRecipe.input.getLiquids()
-            ));
+            consume(new ConsumeLiquidsDynamic(new Func<Building, LiquidStack[]>() {
+                @Override
+                public LiquidStack[] get(Building build) {
+                    MultiCrafterBuild b = (MultiCrafterBuild) build;
+                    return b.currentRecipe == null ? LiquidStack.empty : b.currentRecipe.input.getLiquids();
+                }
+            }));
         }
         
         if (consumePower) {
-            consume(new ConsumePowerDynamic(build ->
-                ((MultiCrafterBuild) build).currentRecipe == null ? 0f : ((MultiCrafterBuild) build).currentRecipe.input.power) {
+            consume(new ConsumePowerDynamic(new Func<Building, Float>() {
+                @Override
+                public Float get(Building build) {
+                    MultiCrafterBuild b = (MultiCrafterBuild) build;
+                    return b.currentRecipe == null ? 0f : b.currentRecipe.input.power;
+                }
+            }) {
                 @Override
                 public float efficiency(Building build) {
-                    MultiCrafterBuild multiCrafterBuild = (MultiCrafterBuild) build;
-                    if (multiCrafterBuild.currentRecipe == null || multiCrafterBuild.currentRecipe.input.power <= 0f) {
-                        return 1f;
-                    }
-                    
+                    MultiCrafterBuild b = (MultiCrafterBuild) build;
+                    if (b.currentRecipe == null || b.currentRecipe.input.power <= 0f) return 1f;
                     return super.efficiency(build);
                 }
             });
         }
         
         if (consumePayloads) {
-            consume(new ConsumePayloadDynamic((MultiCrafterBuild build) -> build.currentRecipe == null ? new Seq<>() : build.currentRecipe.input.getPayloads()));
+            consume(new ConsumePayloadDynamic(new Func<Building, Seq<PayloadStack>>() {
+                @Override
+                public Seq<PayloadStack> get(Building build) {
+                    MultiCrafterBuild b = (MultiCrafterBuild) build;
+                    return b.currentRecipe == null ? new Seq<PayloadStack>() : b.currentRecipe.input.getPayloads();
+                }
+            }));
         }
     }
     
-    public static void pushOutput(Payload payload, float progress){
+    public static void pushOutput(Payload payload, float progress) {
         float thresh = 0.55f;
-        if(progress >= thresh){
-            boolean legStep = payload instanceof UnitPayload u && u.unit.type.allowLegStep;
-            float size = payload.size(), radius = size/2f, x = payload.x(), y = payload.y(), scl = Mathf.clamp(((progress - thresh) / (1f - thresh)) * 1.1f);
+        if (progress >= thresh) {
+            boolean legStep = payload instanceof UnitPayload && ((UnitPayload) payload).unit.type.allowLegStep;
+            float size = payload.size();
+            float radius = size / 2f;
+            float x = payload.x();
+            float y = payload.y();
+            float scl = Mathf.clamp(((progress - thresh) / (1f - thresh)) * 1.1f);
             
-            Groups.unit.intersect(x - size/2f, y - size/2f, size, size, u -> {
-                float dst = u.dst(payload);
-                float rs = radius + u.hitSize/2f;
-                if(u.isGrounded() && u.type.allowLegStep == legStep && dst < rs){
-                    u.vel.add(Tmp.v1.set(u.x - x, u.y - y).setLength(Math.min(rs - dst, 1f)).scl(scl));
+            // ✅ lambda 改匿名内部类
+            Groups.unit.intersect(x - size / 2f, y - size / 2f, size, size, new Cons<Unit>() {
+                @Override
+                public void get(Unit u) {
+                    float dst = u.dst(payload);
+                    float rs = radius + u.hitSize / 2f;
+                    if (u.isGrounded() && u.type.allowLegStep == legStep && dst < rs) {
+                        u.vel.add(Tmp.v1.set(u.x - x, u.y - y).setLength(Math.min(rs - dst, 1f)).scl(scl));
+                    }
                 }
             });
         }
     }
     
-    @Override public void drawPlanRegion(BuildPlan plan, Eachable<BuildPlan> list) { drawer.drawPlan(this, plan, list); }
-    @Override public void getRegionsToOutline(Seq<TextureRegion> out) { drawer.getRegionsToOutline(this, out); }
-    @Override protected TextureRegion[] icons() { return drawer.finalIcons(this); }
+    @Override
+    public void drawPlanRegion(BuildPlan plan, Eachable<BuildPlan> list) { drawer.drawPlan(this, plan, list); }
+    @Override
+    public void getRegionsToOutline(Seq<TextureRegion> out) { drawer.getRegionsToOutline(this, out); }
+    @Override
+    protected TextureRegion[] icons() { return drawer.finalIcons(this); }
     
     public void addRecipe(Recipe recipe, Recipe... recipes) {
         this.recipes.add(recipe);
         this.recipes.addAll(recipes);
     }
     
-    // From Mindustry PayloadBlock
-    protected TextureRegion findFactoryRegion(String suf){
+    protected TextureRegion findFactoryRegion(String suf) {
         TextureRegion region = Core.atlas.find(name + suf);
         
-        if(!region.found() && minfo.mod != null) region = Core.atlas.find(minfo.mod.name + "-factory" + suf + "-" + size + regionSuffix);
-        if(!region.found()) region = Core.atlas.find("factory" + suf + "-" + size + regionSuffix);
+        if (!region.found() && minfo.mod != null)
+            region = Core.atlas.find(minfo.mod.name + "-factory" + suf + "-" + size + regionSuffix);
+        if (!region.found())
+            region = Core.atlas.find("factory" + suf + "-" + size + regionSuffix);
         
         return region;
     }
@@ -253,11 +289,9 @@ public class MultiCrafterBlock extends Block {
             
             if (hasRandomOutputRecipes) this.seed = Mathf.randomSeed(tile.pos(), 0, Integer.MAX_VALUE - 1);
         }
-
+        
         @Override
-        public Object config() {
-            return currentRecipeIndex;
-        }
+        public Object config() { return currentRecipeIndex; }
         
         @Override
         public void updateTile() {
@@ -298,13 +332,12 @@ public class MultiCrafterBlock extends Block {
                 if (wasVisible && Mathf.chance(currentRecipe.updateEffectChance)) {
                     currentRecipe.updateEffect.at(x + Mathf.range(size * currentRecipe.updateEffectSpread), y + Mathf.range(size * currentRecipe.updateEffectSpread));
                 }
-                
-            } else warmup = Mathf.approachDelta(warmup, 0f, currentRecipe.warmupSpeed);
+            } else {
+                warmup = Mathf.approachDelta(warmup, 0f, currentRecipe.warmupSpeed);
+            }
             
             totalProgress += warmup * Time.delta;
-            if (progress >= 1f) {
-                craft();
-            }
+            if (progress >= 1f) craft();
             
             dumpOutputs();
         }
@@ -334,17 +367,17 @@ public class MultiCrafterBlock extends Block {
                 return;
             }
             
-            
             for (ItemStack output : currentRecipe.output.getItems()) {
                 for (int i = 0; i < output.amount; i++) {
                     offload(output.item);
                 }
             }
             
-            if (currentRecipe.output.hasPayloads())
+            if (currentRecipe.output.hasPayloads()) {
                 for (PayloadStack stack : currentRecipe.output.getPayloads()) {
                     payloadOutput.add(stack.item, stack.amount);
                 }
+            }
             
             if (wasVisible) {
                 currentRecipe.craftEffect.at(x, y);
@@ -402,27 +435,19 @@ public class MultiCrafterBlock extends Block {
             if (currentRecipe == null) return false;
             
             for (ItemStack item : currentRecipe.output.getItems()) {
-                if (items.get(item.item) + item.amount > itemCapacity) {
-                    return false;
-                }
+                if (items.get(item.item) + item.amount > itemCapacity) return false;
             }
             
-            if (currentRecipe.input.hasHeat() && currentRecipe.input.heat > 0f && heat <= 0f) {
-                return false;
-            }
+            if (currentRecipe.input.hasHeat() && currentRecipe.input.heat > 0f && heat <= 0f) return false;
             
             return enabled;
         }
         
         @Override
-        public void pickedUp() {
-            carried = true;
-        }
+        public void pickedUp() { carried = true; }
         
         @Override
-        public void drawTeamTop() {
-            carried = false;
-        }
+        public void drawTeamTop() { carried = false; }
         
         @Override
         public Payload takePayload() {
@@ -451,11 +476,17 @@ public class MultiCrafterBlock extends Block {
             for (Recipe recipe : recipes) {
                 if (!recipe.unlockedNow()) continue;
                 
-                if (recipe.input.hasItems()) for (ItemStack item : recipe.input.getItems())
-                    if (items.get(item.item) < item.amount) continue outer;
+                if (recipe.input.hasItems()) {
+                    for (ItemStack item : recipe.input.getItems()) {
+                        if (items.get(item.item) < item.amount) continue outer;
+                    }
+                }
                 
-                if (recipe.input.hasLiquids()) for (LiquidStack liquid : recipe.input.getLiquids())
-                    if (liquids.get(liquid.liquid) < liquid.amount) continue outer;
+                if (recipe.input.hasLiquids()) {
+                    for (LiquidStack liquid : recipe.input.getLiquids()) {
+                        if (liquids.get(liquid.liquid) < liquid.amount) continue outer;
+                    }
+                }
                 
                 if (recipe.input.hasPower() && power.status < 0.99f) continue;
                 if (recipe.input.hasHeat() && heat < recipe.input.heat) continue;
@@ -470,9 +501,7 @@ public class MultiCrafterBlock extends Block {
         }
         
         @Override
-        public float calculateHeat(float[] sideHeat) {
-            return super.calculateHeat(sideHeat);
-        }
+        public float calculateHeat(float[] sideHeat) { return super.calculateHeat(sideHeat); }
         
         @Override
         public void handlePayload(Building source, Payload payload) {
@@ -480,7 +509,6 @@ public class MultiCrafterBlock extends Block {
             this.payloadOutgoing = false;
             this.payVector.set(source).sub(this).clamp(-size * Vars.tilesize / 2f, -size * Vars.tilesize / 2f, size * Vars.tilesize / 2f, size * Vars.tilesize / 2f);
             this.payRotation = payload.rotation();
-            
             updatePayload();
         }
         
@@ -493,7 +521,13 @@ public class MultiCrafterBlock extends Block {
         public void onControlSelect(Unit player) {
             float x = player.x;
             float y = player.y;
-            handleUnitPayload(player, p -> payload = p);
+            // ✅ lambda 改匿名内部类
+            handleUnitPayload(player, new Cons<Payload>() {
+                @Override
+                public void get(Payload p) {
+                    payload = p;
+                }
+            });
             this.payVector.set(x, y).sub(this).clamp(-size * Vars.tilesize / 2f, -size * Vars.tilesize / 2f, size * Vars.tilesize / 2f, size * Vars.tilesize / 2f);
             this.payRotation = player.rotation();
         }
@@ -508,7 +542,6 @@ public class MultiCrafterBlock extends Block {
                         break;
                     }
                 }
-                
                 return valid && items.get(item) < itemCapacity;
             }
             
@@ -525,7 +558,6 @@ public class MultiCrafterBlock extends Block {
                         break;
                     }
                 }
-                
                 return valid && liquids.get(liquid) < liquidCapacity;
             }
             
@@ -544,22 +576,16 @@ public class MultiCrafterBlock extends Block {
                         break;
                     }
                 }
-                
                 return valid && payloadInput.get(payload.content()) < payloadCapacity;
             }
             
             return currentRecipe != null && currentRecipe.input.hasPayloads() && currentRecipe.input.acceptPayload(payload) && payloadInput.get(payload.content()) < currentRecipe.input.getPayloadRequirements(payload);
         }
         
-        // TODO handle? give user choice?
-        public boolean acceptUnitPayload(Unit unit) {
-            return false;
-        }
+        public boolean acceptUnitPayload(Unit unit) { return false; }
         
         @Override
-        public int getMaximumAccepted(Item item) {
-            return itemCapacity;
-        }
+        public int getMaximumAccepted(Item item) { return itemCapacity; }
         
         @Override
         public Vec2 getCommandPosition() { return commandPos; }
@@ -571,7 +597,6 @@ public class MultiCrafterBlock extends Block {
         public void draw() {
             drawer.draw(this);
             
-            // Draw payload input conveyors
             if (currentRecipe != null && currentRecipe.hasPayloads()) {
                 for (int i = 0; i < 4; i++) {
                     if (blends(i) && i != rotation) {
@@ -599,23 +624,18 @@ public class MultiCrafterBlock extends Block {
         protected void setCurrentRecipe(int index) { setCurrentRecipe(index, true); }
         protected void setCurrentRecipe(int index, boolean showEffect) {
             if (index == currentRecipeIndex) return;
-            
             currentRecipeIndex = index;
             setCurrentRecipe(recipes.get(index), showEffect);
         }
         protected void setCurrentRecipe(Recipe recipe, boolean showEffect) {
             currentRecipe = recipe;
-            
             progress = 0f;
             if (showEffect) changeRecipeEffect.at(x, y, block.size, block);
-            
             Vars.ui.hudfrag.blockfrag.rebuild();
         }
         
         @Override
-        public float progress() {
-            return Mathf.clamp(progress);
-        }
+        public float progress() { return Mathf.clamp(progress); }
         
         @Override
         public float totalProgress() { return totalProgress; }
@@ -639,47 +659,36 @@ public class MultiCrafterBlock extends Block {
         public float warmupTarget() {
             if (currentRecipe == null) return 0f;
             if (!currentRecipe.input.hasHeat()) return 1f;
-            
             return Mathf.clamp(heat / currentRecipe.input.heat);
         }
         
         @Override
-        public PayloadSeq getPayloads() {
-            return payloadInput;
-        }
+        public PayloadSeq getPayloads() { return payloadInput; }
         
-        public boolean blends(int direction){
-            return PayloadBlock.blends(this, direction);
-        }
+        public boolean blends(int direction) { return PayloadBlock.blends(this, direction); }
         
-        public void updatePayload(){
-            if(payload != null){
+        public void updatePayload() {
+            if (payload != null) {
                 payload.set(x + payVector.x, y + payVector.y, payRotation);
             }
         }
         
-        /** @return true if the payload is in position. */
-        public boolean moveInPayload() {
-            return moveInPayload(true);
-        }
-        /** @return true if the payload is in position. */
+        public boolean moveInPayload() { return moveInPayload(true); }
         public boolean moveInPayload(boolean rotate) {
-            if(payload == null) return false;
-            
+            if (payload == null) return false;
             updatePayload();
             
-            if(rotate) payRotation = Angles.moveToward(payRotation, block.rotate ? rotdeg() : 90f, payloadRotateSpeed * delta());
+            if (rotate) payRotation = Angles.moveToward(payRotation, block.rotate ? rotdeg() : 90f, payloadRotateSpeed * delta());
             payVector.approach(Vec2.ZERO, payloadSpeed * delta());
             
             return hasArrived();
         }
         
         public void moveOutPayload() {
-            if(payload == null) return;
-            
+            if (payload == null) return;
             updatePayload();
             
-            Vec2 dest = Tmp.v1.trns(rotdeg(), size * Vars.tilesize/2f);
+            Vec2 dest = Tmp.v1.trns(rotdeg(), size * Vars.tilesize / 2f);
             
             payRotation = Angles.moveToward(payRotation, rotdeg(), payloadRotateSpeed * delta());
             payVector.approach(dest, payloadSpeed * delta());
@@ -688,13 +697,16 @@ public class MultiCrafterBlock extends Block {
             boolean canDump = front == null || !front.tile.solid();
             boolean canMove = front != null && (front.block.outputsPayload || front.block.acceptsPayload);
             
-            if(canDump && !canMove) pushOutput(payload, 1f - (payVector.dst(dest) / (size * Vars.tilesize / 2f)));
+            if (canDump && !canMove) pushOutput(payload, 1f - (payVector.dst(dest) / (size * Vars.tilesize / 2f)));
             
-            if(payVector.within(dest, 0.001f)) {
+            if (payVector.within(dest, 0.001f)) {
                 payVector.clamp(-size * Vars.tilesize / 2f, -size * Vars.tilesize / 2f, size * Vars.tilesize / 2f, size * Vars.tilesize / 2f);
                 
-                if(canMove) if(movePayload(payload)) payload = null;
-                else if(canDump) dumpPayload();
+                if (canMove) {
+                    if (movePayload(payload)) payload = null;
+                } else if (canDump) {
+                    dumpPayload();
+                }
             }
         }
         
@@ -702,10 +714,10 @@ public class MultiCrafterBlock extends Block {
             for (PayloadStack stack : currentRecipe.output.getPayloads()) {
                 if (payloadOutput.get(stack.item) > 0) {
                     Payload created = null;
-                    if (stack.item instanceof Block b) created = new BuildPayload(b, team);
-                    else if (stack.item instanceof UnitType u) {
-                        created = new UnitPayload(u.create(team));
-                        
+                    if (stack.item instanceof Block) {
+                        created = new BuildPayload((Block) stack.item, team);
+                    } else if (stack.item instanceof UnitType) {
+                        created = new UnitPayload(((UnitType) stack.item).create(team));
                         Unit un = ((UnitPayload) created).unit;
                         if (commandPos != null && un.isCommandable()) un.command().commandPosition(commandPos);
                     }
@@ -722,26 +734,22 @@ public class MultiCrafterBlock extends Block {
             }
         }
         
-        public void dumpPayload(){
-            //translate payload forward slightly
+        public void dumpPayload() {
             float tx = Angles.trnsx(payload.rotation(), 0.1f), ty = Angles.trnsy(payload.rotation(), 0.1f);
             payload.set(payload.x() + tx, payload.y() + ty, payload.rotation());
             
-            if(payload.dump()){
+            if (payload.dump()) {
                 payload = null;
-            }else{
+            } else {
                 payload.set(payload.x() - tx, payload.y() - ty, payload.rotation());
             }
         }
         
-        public boolean hasArrived(){
-            return payVector.isZero(0.01f);
-        }
+        public boolean hasArrived() { return payVector.isZero(0.01f); }
         
-        public void drawPayload(){
-            if(payload != null){
+        public void drawPayload() {
+            if (payload != null) {
                 updatePayload();
-                
                 Draw.z(Layer.blockOver);
                 payload.draw();
             }
@@ -772,7 +780,6 @@ public class MultiCrafterBlock extends Block {
                 if (!recipe.unlockedNow()) {
                     recipeTable.image(Icon.lock).pad(4f).fill().grow();
                     recipeTable.addListener(Tooltip.Tooltips.getInstance().create("@locked", Vars.mobile));
-                    
                     buttonContent.add(recipeTable).pad(4f).growX();
                 } else {
                     recipeTable.add(recipe.input.buildTable(false, false, recipe.craftTime)).growX().right().pad(4f);
@@ -781,7 +788,8 @@ public class MultiCrafterBlock extends Block {
                     
                     buttonContent.add(recipeTable).pad(4f).growX();
                     
-                    if (hasAttribute() && recipe.attribute != null && block instanceof AttributeMultiCrafterBlock attributeBlock) {
+                    if (hasAttribute() && recipe.attribute != null && block instanceof AttributeMultiCrafterBlock) {
+                        AttributeMultiCrafterBlock attributeBlock = (AttributeMultiCrafterBlock) block;
                         Table attributeTable = new Table();
                         
                         float baseEfficiency = !Float.isNaN(recipe.baseEfficiency) ? recipe.baseEfficiency : attributeBlock.baseEfficiency;
@@ -796,7 +804,13 @@ public class MultiCrafterBlock extends Block {
                     }
                     
                     final int finalIndex = index;
-                    button.changed(() -> configure(finalIndex));
+                    // ✅ lambda 改匿名内部类
+                    button.changed(new Runnable() {
+                        @Override
+                        public void run() {
+                            configure(finalIndex);
+                        }
+                    });
                     button.setChecked(currentRecipeIndex == finalIndex);
                 }
                 button.setDisabled(!recipe.unlockedNow());
@@ -812,7 +826,6 @@ public class MultiCrafterBlock extends Block {
             container.setFadeScrollBars(false);
             
             table.add(container).growX().maxHeight(300f);
-            
             table.layout();
             
             Element selected = buttonTable.getChildren().get(currentRecipeIndex);
@@ -824,28 +837,55 @@ public class MultiCrafterBlock extends Block {
         public void displayBars(Table table) {
             if (currentRecipe == null) return;
             
-            var liquidBarPos = barMap.get("liquid");
+            Bar liquidBarPos = barMap.get("liquid");
             boolean liquidAdded = false;
+            
             for (Func<Building, Bar> bar : this.block.listBars()) {
                 if (currentRecipe.hasLiquids() && !liquidAdded && bar == liquidBarPos) {
-                    for (LiquidStack liquid : currentRecipe.input.getLiquids()) {
-                        Bar liquidBar = liquidBarMap.get("liquid-" + liquid.liquid.name, () -> new Bar(
-                                () -> liquid.liquid.localizedName,
-                                liquid.liquid::barColor,
-                                () -> this.liquids.get(liquid.liquid) / liquid.amount
-                            ));
-                        
+                    for (final LiquidStack liquid : currentRecipe.input.getLiquids()) {
+                        Bar liquidBar = liquidBarMap.get("liquid-" + liquid.liquid.name, new Prov<Bar>() {
+                            @Override
+                            public Bar get() {
+                                return new Bar(
+                                    new Prov<CharSequence>() {
+                                        @Override
+                                        public CharSequence get() { return liquid.liquid.localizedName; }
+                                    },
+                                    new Prov<arc.graphics.Color>() {
+                                        @Override
+                                        public arc.graphics.Color get() { return liquid.liquid.barColor; }
+                                    },
+                                    new arc.func.Floatp() {
+                                        @Override
+                                        public float get() { return liquids.get(liquid.liquid) / liquid.amount; }
+                                    }
+                                );
+                            }
+                        });
                         table.add(liquidBar).growX();
                         table.row();
                     }
                     
-                    for (LiquidStack liquid : currentRecipe.output.getLiquids()) {
-                        Bar liquidBar = liquidBarMap.get("liquid-" + liquid.liquid.name, () -> new Bar(
-                            () -> liquid.liquid.localizedName,
-                            liquid.liquid::barColor,
-                            () -> this.liquids.get(liquid.liquid) / liquid.amount
-                        ));
-                        
+                    for (final LiquidStack liquid : currentRecipe.output.getLiquids()) {
+                        Bar liquidBar = liquidBarMap.get("liquid-" + liquid.liquid.name, new Prov<Bar>() {
+                            @Override
+                            public Bar get() {
+                                return new Bar(
+                                    new Prov<CharSequence>() {
+                                        @Override
+                                        public CharSequence get() { return liquid.liquid.localizedName; }
+                                    },
+                                    new Prov<arc.graphics.Color>() {
+                                        @Override
+                                        public arc.graphics.Color get() { return liquid.liquid.barColor; }
+                                    },
+                                    new arc.func.Floatp() {
+                                        @Override
+                                        public float get() { return liquids.get(liquid.liquid) / liquid.amount; }
+                                    }
+                                );
+                            }
+                        });
                         table.add(liquidBar).growX();
                         table.row();
                     }
@@ -853,7 +893,7 @@ public class MultiCrafterBlock extends Block {
                     continue;
                 }
                 
-                Bar result = (Bar) bar.get(this);
+                Bar result = bar.get(this);
                 if (result != null) {
                     table.add(result).growX();
                     table.row();
@@ -883,9 +923,7 @@ public class MultiCrafterBlock extends Block {
             write.f(payVector.y);
             write.f(payRotation);
             TypeIO.writeVecNullable(write, commandPos);
-            
             write.i(seed);
-            
             write.i(currentRecipeIndex);
         }
         
@@ -905,7 +943,6 @@ public class MultiCrafterBlock extends Block {
                 payVector.set(read.f(), read.f());
                 payRotation = read.f();
                 if (revision >= 2) commandPos = TypeIO.readVecNullable(read);
-                
                 seed = read.i();
             }
             
@@ -924,82 +961,157 @@ public class MultiCrafterBlock extends Block {
         removeBar("power");
         removeBar("liquid");
         
-        addBar("liquid", b -> null);
-        
-        addBar("power", (MultiCrafterBuild b) -> {
-            if (b.currentRecipe == null || !b.currentRecipe.input.hasPower() || consPower == null) {
-                return null;
-            }
-            
-            return new Bar(
-                consPower.buffered ? Core.bundle.format("bar.poweramount", Float.isNaN(b.power.status * consPower.capacity) ? "<ERROR>" : UI.formatAmount((int) (b.power.status * consPower.capacity))) :
-                    "bar.power",
-                Pal.powerBar,
-                () -> b.efficiency
-            );
-        });
-        addBar("power-output", (MultiCrafterBuild b) -> {
-            if (b.currentRecipe == null || !b.currentRecipe.output.hasPower()) {
-                return null;
-            }
-            
-            return new Bar(
-                Core.bundle.format("bar.poweroutput", Strings.fixed(b.getPowerProduction() * 60f * b.timeScale(), 1)),
-                Pal.powerBar,
-                () -> b.efficiency
-            );
-        });
-        addBar("heat", (MultiCrafterBuild b) -> {
-            if (b.currentRecipe == null || !b.currentRecipe.input.hasHeat()) {
-                return null;
-            }
-            
-            return new Bar(
-                Core.bundle.format("bar.heatpercent", (int) (b.heat + 0.01f), (int) (b.efficiencyScale() * 100 + 0.01f)),
-                Pal.lightOrange,
-                b::heatFrac
-            );
-        });
-        addBar("heat-output", (MultiCrafterBuild b) -> {
-            if (b.currentRecipe == null || !b.currentRecipe.output.hasHeat()) {
-                return null;
-            }
-            
-            return new Bar(
-                "bar.heat",
-                Pal.lightOrange,
-                b::heatOutputFrac
-            );
+        // ✅ lambda 改匿名内部类
+        addBar("liquid", new Func<MultiCrafterBuild, Bar>() {
+            @Override
+            public Bar get(MultiCrafterBuild b) { return null; }
         });
         
-        addBar("progress", b -> new Bar(
-            "bar.loadprogress",
-            Pal.accent,
-            b::progress
-        ));
+        addBar("power", new Func<MultiCrafterBuild, Bar>() {
+            @Override
+            public Bar get(final MultiCrafterBuild b) {
+                if (b.currentRecipe == null || !b.currentRecipe.input.hasPower() || consPower == null) return null;
+                
+                return new Bar(
+                    new Prov<CharSequence>() {
+                        @Override
+                        public CharSequence get() {
+                            if (consPower.buffered) {
+                                return Core.bundle.format("bar.poweramount", Float.isNaN(b.power.status * consPower.capacity) ? "<ERROR>" : UI.formatAmount((int) (b.power.status * consPower.capacity)));
+                            }
+                            return "bar.power";
+                        }
+                    },
+                    new Prov<arc.graphics.Color>() {
+                        @Override
+                        public arc.graphics.Color get() { return Pal.powerBar; }
+                    },
+                    new arc.func.Floatp() {
+                        @Override
+                        public float get() { return b.efficiency; }
+                    }
+                );
+            }
+        });
+        
+        addBar("power-output", new Func<MultiCrafterBuild, Bar>() {
+            @Override
+            public Bar get(final MultiCrafterBuild b) {
+                if (b.currentRecipe == null || !b.currentRecipe.output.hasPower()) return null;
+                
+                return new Bar(
+                    new Prov<CharSequence>() {
+                        @Override
+                        public CharSequence get() {
+                            return Core.bundle.format("bar.poweroutput", Strings.fixed(b.getPowerProduction() * 60f * b.timeScale(), 1));
+                        }
+                    },
+                    new Prov<arc.graphics.Color>() {
+                        @Override
+                        public arc.graphics.Color get() { return Pal.powerBar; }
+                    },
+                    new arc.func.Floatp() {
+                        @Override
+                        public float get() { return b.efficiency; }
+                    }
+                );
+            }
+        });
+        
+        addBar("heat", new Func<MultiCrafterBuild, Bar>() {
+            @Override
+            public Bar get(final MultiCrafterBuild b) {
+                if (b.currentRecipe == null || !b.currentRecipe.input.hasHeat()) return null;
+                
+                return new Bar(
+                    new Prov<CharSequence>() {
+                        @Override
+                        public CharSequence get() {
+                            return Core.bundle.format("bar.heatpercent", (int) (b.heat + 0.01f), (int) (b.efficiencyScale() * 100 + 0.01f));
+                        }
+                    },
+                    new Prov<arc.graphics.Color>() {
+                        @Override
+                        public arc.graphics.Color get() { return Pal.lightOrange; }
+                    },
+                    new arc.func.Floatp() {
+                        @Override
+                        public float get() { return b.heatFrac(); }
+                    }
+                );
+            }
+        });
+        
+        addBar("heat-output", new Func<MultiCrafterBuild, Bar>() {
+            @Override
+            public Bar get(final MultiCrafterBuild b) {
+                if (b.currentRecipe == null || !b.currentRecipe.output.hasHeat()) return null;
+                
+                return new Bar(
+                    new Prov<CharSequence>() {
+                        @Override
+                        public CharSequence get() { return "bar.heat"; }
+                    },
+                    new Prov<arc.graphics.Color>() {
+                        @Override
+                        public arc.graphics.Color get() { return Pal.lightOrange; }
+                    },
+                    new arc.func.Floatp() {
+                        @Override
+                        public float get() { return b.heatOutputFrac(); }
+                    }
+                );
+            }
+        });
+        
+        addBar("progress", new Func<MultiCrafterBuild, Bar>() {
+            @Override
+            public Bar get(final MultiCrafterBuild b) {
+                return new Bar(
+                    new Prov<CharSequence>() {
+                        @Override
+                        public CharSequence get() { return "bar.loadprogress"; }
+                    },
+                    new Prov<arc.graphics.Color>() {
+                        @Override
+                        public arc.graphics.Color get() { return Pal.accent; }
+                    },
+                    new arc.func.Floatp() {
+                        @Override
+                        public float get() { return b.progress(); }
+                    }
+                );
+            }
+        });
     }
     
     @Override
     public void setStats() {
         super.setStats();
         
-        stats.add(Stat.output, table -> {
-            // Add a toggle to show in per second or total amount
-            table.row();
-            boolean perSecond = Core.settings.getBool("multicrafter.show-per-second");
-            table.check(Core.bundle.format("ui.show-per-second"), perSecond, b -> {
-                Core.settings.put("multicrafter.show-per-second", b);
-                Vars.ui.content.show(this);
-            });
-            table.row();
-            
-            for (Recipe recipe : recipes) {
-                table.add(recipe.buildTable(this, hasAttribute(), perSecond)).pad(4f).grow();
+        stats.add(Stat.output, new StatValue() {
+            @Override
+            public void display(Table table) {
                 table.row();
+                final boolean perSecond = Core.settings.getBool("multicrafter.show-per-second");
+                // ✅ lambda 改匿名内部类
+                table.check(Core.bundle.format("ui.show-per-second"), perSecond, new Cons<Boolean>() {
+                    @Override
+                    public void get(Boolean b) {
+                        Core.settings.put("multicrafter.show-per-second", b.booleanValue());
+                        Vars.ui.content.show(MultiCrafterBlock.this);
+                    }
+                });
+                table.row();
+                
+                for (Recipe recipe : recipes) {
+                    table.add(recipe.buildTable(MultiCrafterBlock.this, hasAttribute(), perSecond)).pad(4f).grow();
+                    table.row();
+                }
+                
+                table.row();
+                table.defaults().grow();
             }
-            
-            table.row();
-            table.defaults().grow();
         });
     }
     
