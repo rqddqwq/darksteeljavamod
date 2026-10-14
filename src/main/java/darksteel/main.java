@@ -7,7 +7,7 @@ import dev.jojofr.multicrafter.MultiCrafterMod;
 
 public class Main extends Mod {
 
-    // ✅ 静态块：类加载时立即注册，比内容解析早
+    
     static {
         MultiCrafterMod.registerTypes();
     }
