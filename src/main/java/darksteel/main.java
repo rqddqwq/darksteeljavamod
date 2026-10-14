@@ -27,10 +27,10 @@ public class main extends Mod {
       //  DPlanets.load();
     }
 
-    @Override
-    public void init() {
-        new MultiCrafterMod();
-    }
+ @Override
+public void init() {
+    new MultiCrafterMod();   
+}
 
     public static void mount(String nodeName, String planetName, UnlockableContent content){
         if(nodeName == null || planetName == null || content == null) return;
