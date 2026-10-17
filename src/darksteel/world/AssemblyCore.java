@@ -213,8 +213,8 @@ public class AssemblyCore extends Block {
             }
         }
         @Override
-        public void read(Reads read) {
-            super.read(read);
+        public void read(Reads read, byte revision) {
+            super.read(read, revision);
             progress = read.f();
             index = read.i();
             isAssembling = read.bool();

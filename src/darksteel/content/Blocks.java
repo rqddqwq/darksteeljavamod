@@ -1,46 +1,17 @@
 package darksteel.content;
 
-import mindustry.*;
+import darksteel.world.SatelliteStation;
 import mindustry.content.Items;
 import mindustry.content.UnitTypes;
-import mindustry.entities.*;
-import mindustry.entities.abilities.*;
-import mindustry.entities.bullet.*;
-import mindustry.entities.effect.*;
-import mindustry.entities.part.DrawPart.*;
-import mindustry.entities.part.*;
-import mindustry.entities.pattern.*;
-import mindustry.game.*;
-import mindustry.gen.*;
-import mindustry.graphics.*;
 import mindustry.type.*;
-import mindustry.type.unit.*;
-import mindustry.world.*;
-import mindustry.world.blocks.*;
-import mindustry.world.blocks.campaign.*;
-import mindustry.world.blocks.defense.*;
-import mindustry.world.blocks.defense.turrets.*;
-import mindustry.world.blocks.distribution.*;
-import mindustry.world.blocks.environment.*;
-import mindustry.world.blocks.heat.*;
-import mindustry.world.blocks.legacy.*;
-import mindustry.world.blocks.liquid.*;
-import mindustry.world.blocks.logic.*;
-import mindustry.world.blocks.payloads.*;
-import mindustry.world.blocks.power.*;
-import mindustry.world.blocks.production.*;
-import mindustry.world.blocks.sandbox.*;
 import mindustry.world.blocks.storage.*;
-import mindustry.world.blocks.units.*;
-import mindustry.world.consumers.*;
-import mindustry.world.draw.*;
 import mindustry.world.meta.*;
 
-import static mindustry.Vars.*;
 import static mindustry.type.ItemStack.with;
 
 public class Blocks {
     public static CoreBlock core;
+    public static SatelliteStation satelliteStation;
 
     public static void load() {
       core = new CoreBlock("core"){{
@@ -55,6 +26,15 @@ public class Blocks {
 
             unitCapModifier = 8;
         }};
+
+      satelliteStation = new SatelliteStation("satellite-station"){{
+            requirements(Category.effect, BuildVisibility.shown, with(Items.copper, 100, Items.lead, 80, Items.silicon, 50));
+            health = 500;
+            size = 2;
+            update = true;
+            configurable = true;
+            solid = true;
+      }};
     }
 
 }
