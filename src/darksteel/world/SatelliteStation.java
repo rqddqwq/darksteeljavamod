@@ -6,7 +6,6 @@ import arc.util.io.Reads;
 import arc.util.io.Writes;
 import mindustry.content.Fx;
 import mindustry.gen.Building;
-import mindustry.graphics.Drawf;
 import mindustry.graphics.Pal;
 import mindustry.world.Block;
 
@@ -20,49 +19,48 @@ public class SatelliteStation extends Block {
         destructible = true;
         update = true;
         sync = true;
+        saveConfig = true;
         hasPower = false;
-        config(Integer.class, (SatelliteStationBuild build, Integer value) -> {
-            build.satelliteCount = value;
-            build.launching = false;
-            build.launchTimer = 0f;
+        config(LaunchConfig.class, (SatelliteStationBuild build, LaunchConfig value) -> {
+            build.satelliteCount = value.satelliteCount;
+            build.launching = value.launching;
+            build.launchTimer = value.launchTimer;
         });
-    }
-
-    @Override
-    public void drawPlace(int x, int y, int rotation, boolean valid) {
-        super.drawPlace(x, y, rotation, valid);
-        Drawf.text("卫星: 0", x * tilesize + offset, y * tilesize + offset, Pal.accent);
     }
 
     public class SatelliteStationBuild extends Building {
         public int satelliteCount = 0;
         public boolean launching = false;
         public float launchTimer = 0f;
+        public boolean effectPlayed = false;
 
         @Override
         public void updateTile() {
             if(!launching) return;
 
+            if(!effectPlayed && !headless) {
+                Fx.padlaunch.at(tile.drawx(), tile.drawy(), 0f);
+                effectPlayed = true;
+            }
+
             launchTimer += delta();
-            if(launchTimer >= 1.5f) {
+            if(launchTimer >= 10f) {
                 satelliteCount++;
                 launching = false;
                 launchTimer = 0f;
-                configure(satelliteCount);
+                effectPlayed = false;
+                configure(new LaunchConfig(satelliteCount, false, 0f));
             }
         }
 
         @Override
         public void draw() {
             super.draw();
-
-            float labelY = y + tilesize * 0.9f;
-            Drawf.text("卫星: " + satelliteCount, x, labelY, Pal.accent);
         }
 
         @Override
-        public Integer config() {
-            return satelliteCount;
+        public LaunchConfig config() {
+            return new LaunchConfig(satelliteCount, launching, launchTimer);
         }
 
         @Override
@@ -73,7 +71,9 @@ public class SatelliteStation extends Block {
             table.add("当前卫星数量：" + satelliteCount).left().row();
 
             if(launching) {
-                table.add("发射中... " + (1.5f - launchTimer) + "s").color(Pal.accent).row();
+                int countdown = 10 - Math.round(launchTimer);
+                if(countdown < 0) countdown = 0;
+                table.add("倒计时：" + countdown).color(Pal.accent).row();
             }
 
             TextButton launchButton = new TextButton(launching ? "发射中" : "发射卫星");
@@ -82,8 +82,12 @@ public class SatelliteStation extends Block {
 
                 launching = true;
                 launchTimer = 0f;
-                Fx.padlaunch.at(x, y, 0f);
-                configure(satelliteCount);
+                effectPlayed = false;
+                if(!headless) {
+                    Fx.padlaunch.at(tile.drawx(), tile.drawy(), 0f);
+                    effectPlayed = true;
+                }
+                configure(new LaunchConfig(satelliteCount, true, 0f));
                 table.clear();
                 buildConfiguration(table);
             });
@@ -97,6 +101,7 @@ public class SatelliteStation extends Block {
             write.i(satelliteCount);
             write.bool(launching);
             write.f(launchTimer);
+            write.bool(effectPlayed);
         }
 
         @Override
@@ -105,6 +110,19 @@ public class SatelliteStation extends Block {
             satelliteCount = read.i();
             launching = read.bool();
             launchTimer = read.f();
+            effectPlayed = read.bool();
+        }
+    }
+
+    public static class LaunchConfig {
+        public int satelliteCount;
+        public boolean launching;
+        public float launchTimer;
+
+        public LaunchConfig(int satelliteCount, boolean launching, float launchTimer) {
+            this.satelliteCount = satelliteCount;
+            this.launching = launching;
+            this.launchTimer = launchTimer;
         }
     }
 }
