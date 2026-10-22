@@ -15,23 +15,6 @@ ext{
 repositories{
     mavenCentral()
     maven { url = 'https://jitpack.io' }
-    ivy{
-      url = 'https://ghproxy.net/https://github.com/'
-        patternLayout{ artifact(
-            (mindustryVersion == "latest" ? '/[organisation]/[module]/releases/[revision]/download/dependencies.jar' :
-            mindustryVersion == "be" ? '/[organisation]/[module]/releases/download/master/[revision].jar' :
-            '/[organisation]/[module]/releases/download/[revision]/dependencies.jar'))
-        }
-        metadataSources{ artifact() }
-
-        content{
-            if(mindustryVersion == "be"){
-                includeVersion("Anuken", "MindustryBuilds", "latest")
-            }else{
-                includeVersion("Anuken", "Mindustry", mindustryVersion)
-            }
-        }
-    }
 }
 java{
     targetCompatibility = JavaVersion.VERSION_17
@@ -39,7 +22,7 @@ java{
 }
 
 dependencies{
-    compileOnly mindustryVersion == "be" ? "Anuken:MindustryBuilds:latest" : "Anuken:Mindustry:$mindustryVersion"
+    compileOnly files("/storage/emulated/0/javamod/darksteeljavamod/libs/dependencies.jar")
     compileOnly 'com.github.EB-wilson:TooManyItems:3.2'
 }
 
@@ -55,7 +38,10 @@ tasks.register('jarAndroid'){
         if(!platformRoot) throw new GradleException("No android.jar found. Ensure that you have an Android platform installed.")
 
         //collect dependencies needed for desugaring
-        def dependencies = (configurations.compileClasspath.asList() + configurations.runtimeClasspath.asList() + [new File(platformRoot, "android.jar")]).collect{ "--classpath $it.path" }.join(" ")
+        def compileCp = configurations.compileClasspath.files.collect{ "--classpath $it.path" }.join(" ")
+        def runtimeCp = configurations.runtimeClasspath.files.collect{ "--classpath $it.path" }.join(" ")
+        def androidJar = "--classpath ${new File(platformRoot, "android.jar").path}"
+        def dependencies = "$compileCp $runtimeCp $androidJar"
 
         def d8 = isWindows ? "d8.bat" : "d8"
 
