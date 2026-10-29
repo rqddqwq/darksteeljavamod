@@ -138,7 +138,9 @@ public class Recipe extends UnlockableContent {
     @Override
     public void setStats() {
         stats.add(Stat.output, table -> {
-            // 与方块信息面板保持一致：不显示勾选框，按每次加工显示
+            // 同方块信息面板：先换行，避免配方表被挤到「输出: 」标签右边
+            table.row();
+
             boolean perSecond = Core.settings.getBool("multicrafter.show-per-second");
 
             table.add(buildTable(null, false, perSecond)).pad(4f).grow();

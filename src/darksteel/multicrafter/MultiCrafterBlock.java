@@ -1009,8 +1009,10 @@ public class MultiCrafterBlock extends Block {
         super.setStats();
 
         stats.add(Stat.output, table -> {
-            // 按「每次加工 / 每秒」显示由设置项 multicrafter.show-per-second 控制（默认按每次加工），
-            // 不再在信息面板顶部显示勾选框
+            // 信息面板是「输出: 」标签 + 内容同一行排的，先换行，否则第一条配方会被挤到标签右边
+            table.row();
+
+            // 按「每次加工 / 每秒」显示由设置项 multicrafter.show-per-second 控制（默认按每次加工）
             boolean perSecond = Core.settings.getBool("multicrafter.show-per-second");
 
             for (Recipe recipe : recipes) {
@@ -1018,7 +1020,6 @@ public class MultiCrafterBlock extends Block {
                 table.row();
             }
 
-            table.row();
             table.defaults().grow();
         });
     }
