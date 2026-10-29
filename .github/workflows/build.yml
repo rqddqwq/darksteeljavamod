@@ -8,21 +8,36 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    # ========== 安装Android SDK，提供d8 ==========
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        packages: "platforms;android-33,build-tools;34.0.0"
-
-    # 将build-tools加入PATH，d8可直接调用
-    - name: Add Android build-tools to PATH
-      run: echo "${ANDROID_HOME}/build-tools/34.0.0" >> $GITHUB_PATH
-
     - name: Set up JDK 17
       uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
       with:
         java-version: 17
         distribution: temurin
+
+    # ========== 手动安装 Android SDK 命令行工具（替代坏掉的setup-android） ==========
+    - name: Install Android SDK manually
+      run: |
+        mkdir -p $HOME/android-sdk
+        export ANDROID_HOME=$HOME/android-sdk
+        echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+        echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+
+        # 下载Android cmdline-tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline.zip
+        unzip -q cmdline.zip -d $ANDROID_HOME
+        # 必须的目录结构：cmdline-tools/latest/
+        mkdir -p $ANDROID_HOME/cmdline-tools/latest
+        mv $ANDROID_HOME/cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest/ || true
+
+        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+        echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+
+        # 接受协议，安装 platform 和 build-tools（内含d8）
+        yes | sdkmanager --licenses
+        sdkmanager --install "platforms;android-33" "build-tools;34.0.0"
+
+        # 将build-tools加入PATH，d8可直接调用
+        echo "$ANDROID_HOME/build-tools/34.0.0" >> $GITHUB_PATH
 
     # ========== 生成gradle wrapper，解决GradleWrapperMain缺失 ==========
     - name: Generate Gradle wrapper
@@ -35,7 +50,7 @@ jobs:
       uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
       with:
         cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-        # 如果你没有配置密钥，直接删掉下面这一行，否则会报错
+        # 如果你没有配置GRADLE_ENCRYPTION_KEY密钥，删除下面这一行
         # cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
     - name: Build Mod Jar
