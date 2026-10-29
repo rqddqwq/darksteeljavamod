@@ -8,7 +8,14 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Set up PATH
+    # ========== 安装Android SDK，提供d8 ==========
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        packages: "platforms;android-33,build-tools;34.0.0"
+
+    # 将build-tools加入PATH，d8可直接调用
+    - name: Add Android build-tools to PATH
       run: echo "${ANDROID_HOME}/build-tools/34.0.0" >> $GITHUB_PATH
 
     - name: Set up JDK 17
@@ -17,11 +24,19 @@ jobs:
         java-version: 17
         distribution: temurin
 
+    # ========== 生成gradle wrapper，解决GradleWrapperMain缺失 ==========
+    - name: Generate Gradle wrapper
+      run: gradle wrapper
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
       with:
         cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-        cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+        # 如果你没有配置密钥，直接删掉下面这一行，否则会报错
+        # cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
     - name: Build Mod Jar
       run: ./gradlew deploy --configuration-cache
