@@ -15,7 +15,7 @@ import mindustry.type.Planet;
 import mindustry.ctype.*;
 import darksteel.content.DPlanets;
 import darksteel.content.Blocks;
-import dev.jojofr.multicrafter.MultiCrafterMod;
+import darksteel.multicrafter.MultiCrafter;
 
 public class main extends Mod {
 
@@ -24,13 +24,10 @@ public class main extends Mod {
     @Override
     public void loadContent() {
         mod = Vars.mods.getMod(this.getClass());
+        // 多配方体系（darksteel 自己的实现，取代 dev.jojofr.multicrafter）
+        MultiCrafter.register();
         Blocks.load();
         DPlanets.load();
-    }
-
-    @Override
-    public void init() {
-        new MultiCrafterMod();
     }
 
     public static void mount(String nodeName, String planetName, UnlockableContent content){

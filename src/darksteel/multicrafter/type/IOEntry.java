@@ -1,55 +1,55 @@
-package dev.jojofr.multicrafter.type;
+package darksteel.multicrafter.type;
 
 import arc.scene.ui.layout.Table;
 import arc.struct.Seq;
 import arc.util.Log;
 import arc.util.Nullable;
-import dev.jojofr.multicrafter.meta.SimpleStatValues;
+import darksteel.multicrafter.meta.SimpleStatValues;
 import mindustry.type.*;
 import mindustry.world.blocks.payloads.Payload;
 
 /**
- * Represents the inputs or outputs of a {@link Recipe}.
+ * 表示一条 {@link Recipe} 的输入或输出（玄钢重工版）。
  * <p>
- * Supports items, liquids, power, heat, and payloads.
+ * 支持物品、液体、电力、热量与载荷。
  */
 @SuppressWarnings("DeprecatedIsStillUsed")
 public class IOEntry {
     /**
-     * Items consumed or produced. Can be {@code null} if no items are present.
+     * 消耗/产出的物品。没有物品时可为 {@code null}。
      * <p>
-     * Use {@link #getItems()} and {@link #withItems(Object...)} to access and modify the items safely. Direct access is not recommended.
+     * 建议通过 {@link #getItems()} 与 {@link #withItems(Object...)} 读写，不建议直接访问。
      */
     public @Nullable ItemStack[] items;
     /**
-     * Liquids consumed or produced, per ticks. Can be {@code null} if no liquids are present.
+     * 消耗/产出的液体（每 tick）。没有液体时可为 {@code null}。
      * <p>
-     * Use {@link #getLiquids()} and {@link #withLiquids(Object...)} to access and modify the liquids safely. Direct access is not recommended.
+     * 建议通过 {@link #getLiquids()} 与 {@link #withLiquids(Object...)} 读写，不建议直接访问。
      */
     public @Nullable LiquidStack[] liquids;
-    /** Power consumed or produced, per ticks. */
+    /** 消耗/产出的电力（每 tick）。 */
     public float power = 0;
-    /** Heat consumed or produced. */
+    /** 消耗/产出的热量。 */
     public float heat = 0;
     /**
-     * Payloads consumed or produced. Can be {@code null} if no payloads are present.
+     * 消耗/产出的载荷。没有载荷时可为 {@code null}。
      * <p>
-     * Use {@link #getPayloads()} and {@link #withPayloads(Object...)} to access and modify the payloads safely. Direct access is not recommended.
+     * 建议通过 {@link #getPayloads()} 与 {@link #withPayloads(Object...)} 读写，不建议直接访问。
      */
     public @Nullable Seq<PayloadStack> payloads;
-    
-    /** Create an empty {@link IOEntry}. */
+
+    /** 创建一个空的 {@link IOEntry}。 */
     public IOEntry() {}
-    /** Create an {@link IOEntry} with the given items. */
+    /** 用给定物品创建一个 {@link IOEntry}。 */
     public IOEntry(ItemStack[] items) { this.items = items; }
-    /** Create an {@link IOEntry} with the given liquids. */
+    /** 用给定液体创建一个 {@link IOEntry}。 */
     public IOEntry(LiquidStack[] liquids) { this.liquids = liquids; }
-    /** Create an {@link IOEntry} with the given items and liquids. */
+    /** 用给定物品与液体创建一个 {@link IOEntry}。 */
     public IOEntry(ItemStack[] items, LiquidStack[] liquids) { this.items = items; this.liquids = liquids; }
-    
+
     /**
-     * Creates a shallow copy of {@code other}.
-     * @param other {@link IOEntry} to copy.
+     * 浅拷贝 {@code other}。
+     * @param other 要拷贝的 {@link IOEntry}。
      */
     public void copy(IOEntry other) {
         this.items = other.items;
@@ -58,13 +58,13 @@ public class IOEntry {
         this.heat = other.heat;
         this.payloads = other.payloads;
     }
-    
+
     /**
-     * Sets the {@link #items} directly.
+     * 直接设置 {@link #items}。
      *
-     * @deprecated  Use {@link #withItems(Object...)} instead.
-     * @param items the {@link ItemStack} pre-built array to set for this entry.
-     * @return      this entry, for chaining.
+     * @deprecated  请改用 {@link #withItems(Object...)}。
+     * @param items 要设置的 {@link ItemStack} 数组。
+     * @return      该条目，用于链式调用。
      */
     @Deprecated(since = "1.5.0")
     public IOEntry withItems(ItemStack... items) {
@@ -72,22 +72,22 @@ public class IOEntry {
         return this;
     }
     /**
-     * Sets the {@link #items} by converting the given objects to {@link ItemStack}.
+     * 用 {@code Item, 数量} 交替的参数设置 {@link #items}。
      *
-     * @param items the alternating {@code Item, amount} pairs, passed to {@link ItemStack#with(Object...)}.
-     * @return      this entry, for chaining.
+     * @param items 交替的 {@code Item, amount} 参数，传给 {@link ItemStack#with(Object...)}。
+     * @return      该条目，用于链式调用。
      */
     public IOEntry withItems(Object... items) {
         this.items = ItemStack.with(items);
         return this;
     }
-    
+
     /**
-     * Sets the {@link #liquids} directly.
+     * 直接设置 {@link #liquids}。
      *
-     * @deprecated    Use {@link #withLiquids(Object...)} instead.
-     * @param liquids the {@link LiquidStack} pre-built array to set for this entry.
-     * @return        this entry, for chaining.
+     * @deprecated    请改用 {@link #withLiquids(Object...)}。
+     * @param liquids 要设置的 {@link LiquidStack} 数组。
+     * @return        该条目，用于链式调用。
      */
     @Deprecated(since = "1.5.0")
     public IOEntry withLiquids(LiquidStack... liquids) {
@@ -95,44 +95,44 @@ public class IOEntry {
         return this;
     }
     /**
-     * Sets the {@link #liquids} by converting the given objects to {@link LiquidStack}.
+     * 用 {@code Liquid, 数量} 交替的参数设置 {@link #liquids}。
      *
-     * @param liquids the alternating {@code Liquid, amount} pairs, passed to {@link LiquidStack#with(Object...)}.
-     * @return        this entry, for chaining.
+     * @param liquids 交替的 {@code Liquid, amount} 参数，传给 {@link LiquidStack#with(Object...)}。
+     * @return        该条目，用于链式调用。
      */
     public IOEntry withLiquids(Object... liquids) {
         this.liquids = LiquidStack.with(liquids);
         return this;
     }
-    
+
     /**
-     * Sets the {@link #power} directly.
+     * 直接设置 {@link #power}。
      *
-     * @param power the amount of power to set for this entry, per tick.
-     * @return      this entry, for chaining.
+     * @param power 每 tick 的电力，正数为消耗/产出。
+     * @return      该条目，用于链式调用。
      */
     public IOEntry withPower(float power) {
         this.power = power;
         return this;
     }
-    
+
     /**
-     * Sets the {@link #heat} directly.
+     * 直接设置 {@link #heat}。
      *
-     * @param heat the amount of heat to set for this entry.
-     * @return     this entry, for chaining.
+     * @param heat 热量数值。
+     * @return     该条目，用于链式调用。
      */
     public IOEntry withHeat(float heat) {
         this.heat = heat;
         return this;
     }
-    
+
     /**
-     * Sets the {@link #payloads} directly.
+     * 直接设置 {@link #payloads}。
      *
-     * @deprecated     Use {@link #withPayloads(Object...)} instead.
-     * @param payloads the {@link PayloadStack} pre-built array to set for this entry.
-     * @return         this entry, for chaining.
+     * @deprecated     请改用 {@link #withPayloads(Object...)}。
+     * @param payloads 要设置的 {@link PayloadStack} 数组。
+     * @return         该条目，用于链式调用。
      */
     @Deprecated(since = "1.5.0")
     public IOEntry withPayloads(PayloadStack... payloads) {
@@ -140,173 +140,173 @@ public class IOEntry {
         return this;
     }
     /**
-     * Sets the {@link #payloads} by converting the given objects to {@link PayloadStack}.
+     * 用 {@code 载荷, 数量} 交替的参数设置 {@link #payloads}。
      *
-     * @param payloads the alternating {@code Payload, amount} pairs, passed to {@link PayloadStack#with(Object...)}.
-     * @return         this entry, for chaining.
+     * @param payloads 交替的 {@code Payload, amount} 参数，传给 {@link PayloadStack#with(Object...)}。
+     * @return         该条目，用于链式调用。
      */
     public IOEntry withPayloads(Object... payloads) {
         PayloadStack[] stacks = PayloadStack.with(payloads);
         this.payloads = new Seq<>(stacks);
         return this;
     }
-    
+
     public boolean isEmpty() { return (items == null || items.length == 0) && (liquids == null || liquids.length == 0) && power <= 0 && heat <= 0 && (payloads == null || payloads.size == 0); }
-    
+
     public boolean hasItems() { return items != null && items.length > 0; }
     public boolean acceptItem(Item item) {
         if (items == null) return false;
-        
+
         for (ItemStack stack : items) if (item == stack.item) return true;
         return false;
     }
-    
+
     public boolean hasLiquids() { return liquids != null && liquids.length > 0; }
     public boolean acceptLiquid(Liquid liquid) {
         if (liquids == null) return false;
-        
+
         for (LiquidStack stack : liquids) if (liquid == stack.liquid) return true;
         return false;
     }
-    
+
     public boolean hasPower() { return power > 0; }
     public boolean hasHeat() { return heat > 0; }
-    
+
     public boolean hasPayloads() { return payloads != null && payloads.size > 0; }
     public boolean hasPayloadsUnit() { return hasPayloads() && payloads.contains(stack -> stack.item instanceof UnitType); }
     public boolean acceptPayload(Payload payload) {
         if (payloads == null) return false;
-        
+
         for (PayloadStack stack : payloads) if (payload.content() == stack.item) return true;
         return false;
     }
-    
+
     /**
-     * Returns the amount of the given payload required by this entry.
+     * 返回该条目对指定载荷的需求数量。
      *
-     * @param payload the payload to check.
-     * @return        the required amount of the payload, or {@code 0} if the payload is not present in this entry.
+     * @param payload 要检查的载荷。
+     * @return        该载荷的需求数量；若条目中没有该载荷则返回 {@code 0}。
      */
     public int getPayloadRequirements(Payload payload) {
         if (payloads == null) return 0;
-        
+
         for (PayloadStack stack : payloads) if (payload.content() == stack.item) return stack.amount;
         return 0;
     }
-    
+
     /**
-     * Return the items in this entry.
+     * 返回该条目中的物品。
      *
-     * @return the items in this entry, or an empty array if none are present.
+     * @return 物品数组；没有则为空数组。
      */
     public ItemStack[] getItems() { return items == null ? ItemStack.empty : items; }
     /**
-     * Return the liquids in this entry.
+     * 返回该条目中的液体。
      *
-     * @return the liquids in this entry, or an empty array if none are present.
+     * @return 液体数组；没有则为空数组。
      */
     public LiquidStack[] getLiquids() { return liquids == null ? LiquidStack.empty : liquids; }
     public float getPower() { return power; }
     public float getHeat() { return heat; }
     /**
-     * Return the payloads in this entry.
+     * 返回该条目中的载荷。
      *
-     * @return the payloads in this entry, or an empty sequence if none are present.
+     * @return 载荷序列；没有则为空序列。
      */
     public Seq<PayloadStack> getPayloads() { return payloads == null ? new Seq<>(0) : payloads; }
-    
-    
+
+
     /**
-     * Builds a table displaying the contents of this entry, in a grid format, with a maximum of 5 items per row.
+     * 以网格形式构建显示该条目内容的表格，每行最多 5 个。
      *
-     * @param perSecond whether to display the amounts as per second or per craft.
-     * @param craftTime the time it takes to craft the recipe, in ticks.
-     * @return          the table displaying the contents of this entry.
+     * @param perSecond 是否按每秒显示（否则按每次加工显示）。
+     * @param craftTime 配方加工时间（tick）。
+     * @return          构建好的表格。
      */
     public Table buildTable(boolean perSecond, float craftTime) { return buildTable(true, perSecond, craftTime, false); }
     /**
-     * Builds a table displaying the contents of this entry, in a grid format, with a maximum of 5 items per row.
+     * 以网格形式构建显示该条目内容的表格，每行最多 5 个。
      * <p>
-     * If {@code random} is true, the table is limited to only displaying the items, and the amounts are displayed as percentages of the total amount, instead of absolute values.
+     * 若 {@code random} 为 true，则只显示物品，且数量显示为占总数的百分比。
      *
-     * @param perSecond whether to display the amounts as per second or per craft.
-     * @param craftTime the time it takes to craft the recipe, in ticks.
-     * @param random    whether to display the amounts as percentages of the total amount, instead of absolute values.
-     * @return          the table displaying the contents of this entry.
+     * @param perSecond 是否按每秒显示（否则按每次加工显示）。
+     * @param craftTime 配方加工时间（tick）。
+     * @param random    是否按百分比显示物品（随机输出模式）。
+     * @return          构建好的表格。
      */
     public Table buildTable(boolean perSecond, float craftTime, boolean random) { return buildTable(true, perSecond, craftTime, random); }
     /**
-     * Builds a table displaying the contents of this entry, in a grid format, with a maximum of 5 items per row.
+     * 以网格形式构建显示该条目内容的表格，每行最多 5 个。
      *
-     * @param tooltip   whether to display tooltips for the items, liquids, and payloads.
-     * @param perSecond whether to display the amounts as per second or per craft.
-     * @param craftTime the time it takes to craft the recipe, in ticks.
-     * @return          the table displaying the contents of this entry.
+     * @param tooltip   是否为物品、液体、载荷显示悬浮提示。
+     * @param perSecond 是否按每秒显示（否则按每次加工显示）。
+     * @param craftTime 配方加工时间（tick）。
+     * @return          构建好的表格。
      */
     public Table buildTable(boolean tooltip, boolean perSecond, float craftTime) { return buildTable(tooltip, perSecond, craftTime, false); }
     /**
-     * Builds a table displaying the contents of this entry, in a grid format, with a maximum of 5 items per row.
+     * 以网格形式构建显示该条目内容的表格，每行最多 5 个。
      * <p>
-     * If {@code random} is true, the table is limited to only displaying the items, and the amounts are displayed as percentages of the total amount, instead of absolute values.
+     * 若 {@code random} 为 true，则只显示物品，且数量显示为占总数的百分比。
      *
-     * @param tooltip   whether to display tooltips for the items, liquids, and payloads.
-     * @param perSecond whether to display the amounts as per second or per craft.
-     * @param craftTime the time it takes to craft the recipe, in ticks.
-     * @param random    whether to display the amounts as percentages of the total amount, instead of absolute values.
-     * @return          the table displaying the contents of this entry.
+     * @param tooltip   是否为物品、液体、载荷显示悬浮提示。
+     * @param perSecond 是否按每秒显示（否则按每次加工显示）。
+     * @param craftTime 配方加工时间（tick）。
+     * @param random    是否按百分比显示物品（随机输出模式）。
+     * @return          构建好的表格。
      */
     public Table buildTable(boolean tooltip, boolean perSecond, float craftTime, boolean random) {
         Table table = new Table();
         if (random && !hasItems()) return table;
         Table materialTable = new Table();
-        
+
         SimpleStatValues.count = 0;
         SimpleStatValues.perSecond = perSecond;
         SimpleStatValues.craftTime = craftTime;
-        
+
         if (random) {
             int sum = 0;
             for (ItemStack stack : items) sum += stack.amount;
-            
+
             SimpleStatValues.itemsPercent(false, tooltip, sum, items).display(materialTable);
             table.add(materialTable);
             return table;
         }
-        
+
         if (hasItems()) SimpleStatValues.items(false, tooltip, items).display(materialTable);
         if (hasLiquids()) SimpleStatValues.liquids(false, tooltip, liquids).display(materialTable);
         if (hasPayloads()) SimpleStatValues.payloads(false, tooltip, payloads).display(materialTable);
-        
+
         Table smallIndictor = new Table();
         if (hasPower()) SimpleStatValues.power(power).display(smallIndictor);
         if (hasHeat()) SimpleStatValues.heat(heat).display(smallIndictor);
-        
+
         table.add(materialTable);
         table.row();
         table.add(smallIndictor);
-        
+
         return table;
     }
-    
+
     /**
-     * Removes duplicate resources from this entry.
+     * 移除该条目中的重复资源。
      * <p>
-     * When duplicates are found, only the first occurrence is kept and a warning is logged.
+     * 发现重复时保留第一个，并输出一条警告日志。
      *
-     * @param name the recipe name, used for logging.
-     * @return     this entry, for chaining.
+     * @param name 配方名，用于日志。
+     * @return     该条目，用于链式调用。
      */
     public IOEntry removeDuplicate(String name) {
         if (hasItems()) items = removeDuplicates(items).toArray(ItemStack.class);
         if (hasLiquids()) liquids = removeDuplicates(liquids).toArray(LiquidStack.class);
         if (hasPayloads()) payloads = removeDuplicates(payloads.toArray(PayloadStack.class));
-        
+
         return this;
     }
-    
+
     private <T> Seq<T> removeDuplicates(T[] array) {
         Seq<T> unique = new Seq<>(array.length);
-        
+
         for (T element : array) {
             if (unique.contains(other -> other == element)) {
                 Log.warn("Duplicate element '@' found in IOEntry, ignoring.", element.toString());
@@ -314,7 +314,7 @@ public class IOEntry {
             }
             unique.add(element);
         }
-        
+
         return unique;
     }
 }

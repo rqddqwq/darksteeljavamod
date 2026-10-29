@@ -1,6 +1,7 @@
 package darksteel.content;
 
 import mindustry.*;
+import mindustry.content.Fx;
 import mindustry.content.Items;
 import mindustry.content.UnitTypes;
 import mindustry.entities.*;
@@ -36,11 +37,16 @@ import mindustry.world.consumers.*;
 import mindustry.world.draw.*;
 import mindustry.world.meta.*;
 
+import darksteel.multicrafter.MultiCrafterBlock;
+import darksteel.multicrafter.type.Recipe;
+
 import static mindustry.Vars.*;
 import static mindustry.type.ItemStack.with;
 
 public class Blocks {
     public static CoreBlock core;
+    /** 多配方加工厂示例（darksteel.multicrafter）。 */
+    public static MultiCrafterBlock multiCrafter;
 
     public static void load() {
       core = new CoreBlock("core"){{
@@ -54,6 +60,36 @@ public class Blocks {
             buildCostMultiplier = 2f;
 
             unitCapModifier = 8;
+        }};
+
+        // 多配方示例：同一个方块里放两条配方，游戏内点击方块即可切换。
+        // 配方名(item) 里的名字只是内部标识，localizedName 才是显示名。
+        multiCrafter = new MultiCrafterBlock("multi-crafter"){{
+            requirements(Category.production, BuildVisibility.shown, with(Items.copper, 60, Items.lead, 40));
+            alwaysUnlocked = true;
+
+            size = 2;
+            health = 320;
+            itemCapacity = 40;
+            liquidCapacity = 40f;
+
+            addRecipe(
+                new Recipe("multi-smelt",
+                    in -> in.withItems(Items.coal, 1, Items.copper, 1),
+                    out -> out.withItems(Items.graphite, 1), 90f)
+                    .withLocalizedName("铜冶炼")
+                    .withCraftEffect(Fx.smeltsmoke)
+                    .withUpdateEffect(Fx.smeltsmoke, 0.05f)
+                    .isAlwaysUnlocked(),
+
+                new Recipe("multi-alloy",
+                    in -> in.withItems(Items.copper, 2, Items.lead, 2),
+                    out -> out.withItems(Items.silicon, 1), 120f)
+                    .withLocalizedName("合金提纯")
+                    .withCraftEffect(Fx.smeltsmoke)
+                    .withUpdateEffect(Fx.smeltsmoke, 0.05f)
+                    .isAlwaysUnlocked()
+            );
         }};
     }
 

@@ -1,0 +1,69 @@
+# 玄钢重工 · 用 JSON(hjson) 定义的多配方加工厂示例
+#
+# 打包后位于 jar 的 content/blocks/ 下，启动时由 Mindustry 的内容解析器读取。
+# 关键点：
+#   1) type 写 ClassMap 里登记的名字 "MultiCrafter"（main.loadContent() 里的 MultiCrafter.register()）；
+#   2) 配方写在字段 jsonRecipes 里，字段名不能改（MultiCrafterBlock.jsonRecipes）；
+#   3) 配方的 name 会自动加上 mod 前缀，避免和别的 mod 重名。
+# 不想要这个示例方块时，删掉本文件与 assets/sprites/multi-crafter-json.png 即可。
+
+type: MultiCrafter
+
+size: 2
+health: 320
+itemCapacity: 40
+category: production
+alwaysUnlocked: true
+
+localizedName: "多配方加工厂(JSON)"
+
+requirements: [
+  { item: copper, amount: 60 }
+  { item: lead, amount: 40 }
+]
+
+jsonRecipes: [
+  {
+    name: multi-json-smelt
+    localizedName: "铜冶炼(JSON)"
+    craftTime: 90
+    alwaysUnlocked: true
+    craftEffect: smeltsmoke
+
+    input: {
+      items: [
+        { item: coal, amount: 1 }
+        { item: copper, amount: 1 }
+      ]
+    }
+
+    output: {
+      items: [
+        { item: graphite, amount: 1 }
+      ]
+    }
+  }
+
+  {
+    name: multi-json-alloy
+    localizedName: "合金提纯(JSON)"
+    craftTime: 120
+    alwaysUnlocked: true
+    craftEffect: smeltsmoke
+
+    input: {
+      items: [
+        { item: copper, amount: 2 }
+        { item: lead, amount: 2 }
+      ]
+      # 每 tick 消耗的电力（input.power > 0 即为耗电）
+      power: 0.5
+    }
+
+    output: {
+      items: [
+        { item: silicon, amount: 1 }
+      ]
+    }
+  }
+]

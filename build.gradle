@@ -44,7 +44,6 @@ java{
 
 dependencies{
     compileOnly mindustryVersion == "be" ? "Anuken:MindustryBuilds:latest" : "Anuken:Mindustry:$mindustryVersion"
-    compileOnly 'com.github.EB-wilson:TooManyItems:3.2'
 }
 
 tasks.register('jarAndroid'){
