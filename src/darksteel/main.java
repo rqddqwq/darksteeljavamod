@@ -15,7 +15,7 @@ import mindustry.type.Planet;
 import mindustry.ctype.*;
 import darksteel.content.DPlanets;
 import darksteel.content.Blocks;
-//import dev.jojofr.multicrafter.MultiCrafterMod;
+import dev.jojofr.multicrafter.MultiCrafterMod;
 
 public class main extends Mod {
 
@@ -30,7 +30,7 @@ public class main extends Mod {
 
     @Override
     public void init() {
-      //  new MultiCrafterMod();
+        new MultiCrafterMod();
     }
 
     public static void mount(String nodeName, String planetName, UnlockableContent content){
