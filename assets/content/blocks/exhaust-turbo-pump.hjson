@@ -1,0 +1,36 @@
+# 玄钢重工 · 废气机制 JSON 示例
+#
+# 这个方块完全由本文件定义，没有一行 Java 是它为写而生：
+#   type  -> 指向 Java 类（由 Exhaust.register() 登记进 ClassMap，见 src/darksteel/exhaust/Exhaust.java）
+#   下面几个字段 -> 直接喂进那个类的 public 字段
+# 也就是说：不改 Java、只改数字，就能造出一个参与废气场的方块。
+#
+# 文件位置说明：源码里放在 assets/content/blocks/，gradle 会把 assets/** 平铺到 jar 根，
+# 于是运行时它是 content/blocks/exhaust-turbo-pump.hjson —— Mindustry 正是扫描这个路径。
+
+type: ExhaustPump
+
+# 注意：这里不要写模组前缀。加载时会自动变成「<模组名>-exhaust-turbo-pump」，
+# 贴图文件名同理（写 exhaust-turbo-pump.png 即可，前缀由打包器补）。
+name: exhaust-turbo-pump
+
+localizedName: 强力废气泵（JSON 示例）
+description: 用 .hjson 定义的泵：抽得猛，自己也会喘气。
+details: "产气 0.15/秒、容量 150 —— 这两个数字全部写在本文件里。\n它同样会被机制层注入废气，别以为泵就能免役。"
+
+category: effect
+buildVisibility: shown
+alwaysUnlocked: true
+
+health: 300
+size: 1
+requirements: [
+  { item: titanium, amount: 60 }
+  { item: silicon, amount: 40 }
+]
+
+# ---- 废气字段：ExhaustBlock / ExhaustPump 暴露给 JSON 的 public 字段 ----
+exhaustRate: 0.15      # 每秒自产废气量
+totalExhaust: 150      # 废气总容量，攒满即泄漏
+pumpRate: 20           # 每秒最大抽取量（泵专属）
+ventInterval: 8        # 排气特效间隔，单位游戏刻（泵专属）

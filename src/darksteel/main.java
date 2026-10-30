@@ -13,8 +13,10 @@ import mindustry.content.TechTree.TechNode;
 import mindustry.type.ItemStack;
 import mindustry.type.Planet;
 import mindustry.ctype.*;
-import darksteel.content.DPlanets;
-import darksteel.content.Blocks;
+import darksteel.exhaust.Exhaust;
+import darksteel.exhaust.ExhaustReactions;
+import darksteel.exhaust.ExhaustStates;
+import darksteel.content.DarksteelBlocks;
 import darksteel.multicrafter.MultiCrafter;
 
 public class main extends Mod {
@@ -26,26 +28,11 @@ public class main extends Mod {
         mod = Vars.mods.getMod(this.getClass());
         // 多配方体系（darksteel 自己的实现，取代 dev.jojofr.multicrafter）
         MultiCrafter.register();
-        Blocks.load();
-        DPlanets.load();
-    }
 
-    public static void mount(String nodeName, String planetName, UnlockableContent content){
-        if(nodeName == null || planetName == null || content == null) return;
-        Planet planet = (Planet)Vars.content.byName(planetName);
-        MappableContent nodeContent = Vars.content.byName(nodeName);
-        if(planet == null) return;
-        Cons<ContentInitEvent> listener = new Cons<>(){
-            @Override 
-            public void get(ContentInitEvent event){
-                TechNode[] nodes = {null};
-                planet.techTree.each(n  -> {
-                    if(n.content == (UnlockableContent)nodeContent) nodes[0] = n;
-                });
-                new TechNode(nodes[0], content, ItemStack.empty);
-                Events.remove(ContentInitEvent.class, this);
-            }
-        };
-        Events.on(ContentInitEvent.class, listener);
+        // 废气机制：先装数据层/反应层（注册存档 chunk、联机包、地块事件），再建内容
+        Exhaust.register();   // 把废气方块类暴露给 json/hjson：type: ExhaustBlock / ExhaustPump ...
+        ExhaustStates.init();
+        ExhaustReactions.init();
+        DarksteelBlocks.load();
     }
 }
