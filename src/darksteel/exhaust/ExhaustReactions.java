@@ -10,7 +10,6 @@ import arc.struct.IntSeq;
 import arc.struct.IntSet;
 import arc.struct.Seq;
 import mindustry.Vars;
-import mindustry.content.Blocks;
 import mindustry.entities.Effect;
 import mindustry.entities.Units;
 import mindustry.game.EventType;
@@ -21,9 +20,6 @@ import mindustry.gen.Sounds;
 import mindustry.gen.Unit;
 import mindustry.world.Block;
 import mindustry.world.Tile;
-import mindustry.world.blocks.environment.OreBlock;
-import mindustry.world.blocks.environment.Prop;
-import mindustry.world.blocks.environment.StaticWall;
 import mindustry.world.blocks.storage.CoreBlock;
 
 /**
@@ -31,15 +27,16 @@ import mindustry.world.blocks.storage.CoreBlock;
  * <p>
  * 一次反应的完整流程：
  * <ol>
- *     <li>爆心消失，半径 {@code parameters.radius} 内的地块全部登记；</li>
+ *     <li>爆心消失，半径 {@code parameters.radius} 内的建筑全部登记；</li>
  *     <li>半径内的单位吃 {@code unitDamage}；</li>
  *     <li>半径内的建筑各灌 {@code propagatedEnergy} 点废气：<br>
- *         核心只是掉血（{@code coreDamage}），因为核心不参与能量积累；</li>
+ *         核心只是掉血（{@code coreDamage}），因为核心不参与废气积累；</li>
  *     <li>被灌满的建筑：是 {@link ExhaustExplosive} 就 <b>排进队列连锁引爆</b>，
- *         否则原地 <b>废气</b>（拆掉 + 按足迹铺残骸）；</li>
- *     <li>地形改写（地板 / 矿石 / 墙 / 装饰物）；</li>
+ *         否则原地 <b>泄漏</b>（拆掉 + 按足迹铺残骸）；</li>
  *     <li>铺残骸、放特效。</li>
  * </ol>
+ * <b>不改地形</b>：爆炸只拆建筑、不替换地板/矿石/墙，也不吹飞装饰物。
+ * <p>
  * 所有连锁都走 {@link #queue} + {@link Core#app#post}，绝不在一次递归里做完，
  * 因此几百个建筑一起炸也不会爆栈；同时用 {@link #queued} / {@link #processed}
  * 保证同一格在一次连锁里只处理一次。

@@ -9,7 +9,6 @@ import darksteel.world.blocks.exhaust.ExhaustPump;
 import mindustry.content.Items;
 import mindustry.type.Category;
 import mindustry.world.Block;
-import mindustry.world.blocks.environment.Floor;
 import mindustry.world.blocks.environment.Prop;
 import mindustry.world.meta.BuildVisibility;
 
@@ -32,12 +31,9 @@ import static mindustry.type.ItemStack.with;
  *
  *   废气泵（放在陆地上，朝谁抽谁，把废气排到大气）
  * </pre>
- * 另外还有被废气烧过的地形和三种尺寸的残骸，都是给爆炸收尾用的。
+ * 另外还有三种尺寸的残骸，给爆炸收尾用（爆炸不改地形，只拆建筑）。
  */
 public class DarksteelBlocks {
-
-    /** 被废气过的地面。 */
-    public static Floor scorchedFloor;
 
     /** 残骸：1x1 / 2x2 / 3x3。 */
     public static Block remnantSmall, remnantMedium, remnantLarge;
@@ -57,12 +53,6 @@ public class DarksteelBlocks {
     }
 
     private static void loadEnvironment() {
-        scorchedFloor = new Floor("exhaust-scorched-floor", 3) {
-            {
-                localizedName = "废气焦土";
-            }
-        };
-
         remnantSmall = new Prop("exhaust-remnant-1") {
             {
                 localizedName = "废气残骸";
@@ -104,8 +94,6 @@ public class DarksteelBlocks {
                 alwaysUnlocked = true;
 
                 parameters = new ExhaustReactionParameters(4, 240f, 500f, 20f)
-                    .floor(scorchedFloor)
-                    .clearProps(true)
                     .remnants(remnantSmall, remnantMedium, remnantLarge);
             }
         };
@@ -133,8 +121,6 @@ public class DarksteelBlocks {
                 alwaysUnlocked = true;
 
                 parameters = new ExhaustReactionParameters(6, 600f, 1200f, 25f)
-                    .floor(scorchedFloor)
-                    .clearProps(true)
                     .remnants(remnantSmall, remnantMedium, remnantLarge);
             }
         };
