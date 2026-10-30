@@ -184,7 +184,6 @@ public class ExhaustReactions {
         int radius = Math.max(parameters.radius, 0);
 
         // 1. 收集半径内地块与建筑（圆形范围，与爆炸的视觉范围一致）
-        Seq<Tile> tiles = new Seq<>();
         Seq<Building> buildings = new Seq<>();
         IntSet buildingPositions = new IntSet();
         for (int dx = -radius; dx <= radius; dx++) {
@@ -193,11 +192,7 @@ public class ExhaustReactions {
                     continue;
                 }
                 Tile tile = Vars.world.tile(reaction.tileX + dx, reaction.tileY + dy);
-                if (tile == null) {
-                    continue;
-                }
-                tiles.add(tile);
-                if (tile.build == null || !buildingPositions.add(tile.build.pos())) {
+                if (tile == null || tile.build == null || !buildingPositions.add(tile.build.pos())) {
                     continue;
                 }
                 buildings.add(tile.build);
@@ -257,8 +252,7 @@ public class ExhaustReactions {
             }
         }
 
-        // 5. 地形与残骸
-        convertTerrain(tiles, parameters);
+        // 5. 残骸（不改地形：爆炸只清建筑、不换地块）
         placeRemnants(remnants, parameters.remnants);
 
         // 6. 特效
@@ -311,33 +305,6 @@ public class ExhaustReactions {
             }
             placeRemnants(remnants, remnantSet);
         });
-    }
-
-    private static void convertTerrain(Seq<Tile> tiles, ExhaustReactionParameters parameters) {
-        // 地板 / 矿石
-        if (parameters.floor != null || parameters.ore != null) {
-            for (Tile tile : tiles) {
-                Block floor = parameters.floor != null ? parameters.floor : tile.floor();
-                Block overlay = parameters.ore != null && tile.overlay() instanceof OreBlock
-                    ? parameters.ore
-                    : tile.overlay();
-                if (floor != tile.floor() || overlay != tile.overlay()) {
-                    tile.setFloorNet(floor, overlay);
-                }
-            }
-        }
-
-        // 墙 / 装饰物
-        if (parameters.wall != null || parameters.clearProps) {
-            for (Tile tile : tiles) {
-                Block block = tile.block();
-                if (parameters.wall != null && block instanceof StaticWall) {
-                    tile.setNet(parameters.wall, Team.derelict, 0);
-                } else if (parameters.clearProps && block instanceof Prop) {
-                    tile.setNet(Blocks.air, Team.derelict, 0);
-                }
-            }
-        }
     }
 
     /**
