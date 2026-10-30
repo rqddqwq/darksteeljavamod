@@ -1,43 +1,27 @@
-plugins{
-    java
-}
+apply plugin: "java"
 
-sourceSets.main{
-    java.setSrcDirs(listOf("src"))
-}
+sourceSets.main.java.srcDirs = ["src"]
 
-// Mindustry version to depend on.
-// Valid values:
-// - latest: depend on the latest release of mindustry
-// - be: depend on the very latest commit of mindustry
-// - v<number>: depend on a specific version
-val mindustryVersion = "v160"
-val isWindows = System.getProperty("os.name").lowercase().contains("windows")
-val sdkRoot: String? = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
-val projectName = project.name
+ext{
+    mindustryVersion = "v160"
+    isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+    sdkRootVal = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+}
 
 repositories{
     mavenCentral()
-
-    //Downloads the dependencies JAR file from Mindustry releases; does not use any real repository. Surprisingly, this is the most reliable option.
+    maven { url = 'https://jitpack.io' }
     ivy{
-        url = uri("https://github.com/")
-        patternLayout{
-            val pattern = when(mindustryVersion){
-                "latest" -> "/[organisation]/[module]/releases/[revision]/download/dependencies.jar" //latest stable release
-                "be" -> "/[organisation]/[module]/releases/download/master/[revision].jar" //latest commit (BE)
-                else -> "/[organisation]/[module]/releases/download/[revision]/dependencies.jar" //specific release
-            }
-            val path = pattern.substring(0, pattern.lastIndexOf('/'))
-
-            artifact("$path/[classifier].jar")
-            artifact(pattern.replaceFirst(Regex("""\.jar$"""), "(-[classifier]).jar"))
+        url = 'https://github.com/'
+        patternLayout{ artifact(
+            (mindustryVersion == "latest" ? '/[organisation]/[module]/releases/[revision]/download/dependencies.jar' :
+            mindustryVersion == "be" ? '/[organisation]/[module]/releases/download/master/[revision].jar' :
+            '/[organisation]/[module]/releases/download/[revision]/dependencies.jar'))
         }
         metadataSources{ artifact() }
 
         content{
             if(mindustryVersion == "be"){
-                //BE artifact version is always 'latest'
                 includeVersion("Anuken", "MindustryBuilds", "latest")
             }else{
                 includeVersion("Anuken", "Mindustry", mindustryVersion)
@@ -47,84 +31,67 @@ repositories{
 }
 
 java{
-    sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_17
 }
 
 dependencies{
-    compileOnly(if(mindustryVersion == "be") "Anuken:MindustryBuilds:latest" else "Anuken:Mindustry:$mindustryVersion")
+    compileOnly mindustryVersion == "be" ? "Anuken:MindustryBuilds:latest" : "Anuken:Mindustry:$mindustryVersion"
 }
 
-tasks.jar{
-    archiveFileName.set("${projectName}Desktop.jar")
+// 任务注册阶段就拿到config，不要放到doLast里面
+def compileCp = configurations.compileClasspath
+def runtimeCp = configurations.runtimeClasspath
 
-    from(configurations.runtimeClasspath.map{ files ->
-        files.map{ if(it.isDirectory) it else zipTree(it) }
-    })
+tasks.register('jarAndroid'){
+    dependsOn "jar"
+    def projectName = project.name
+    def sdkRoot = project.ext.sdkRootVal
+    def isWin = isWindows
+
+    doLast{
+        if(!sdkRoot || !new File(sdkRoot).exists()) throw new GradleException("No valid Android SDK found. Ensure that ANDROID_HOME is set to your Android SDK directory.")
+
+        def platformRoot = new File("$sdkRoot/platforms/").listFiles().sort().reverse().find{ f -> new File(f, "android.jar").exists() }
+
+        if(!platformRoot) throw new GradleException("No android.jar found. Ensure that you have an Android platform installed.")
+
+        def dependencies = (compileCp.asList() + runtimeCp.asList() + [new File(platformRoot, "android.jar")]).collect{ "--classpath $it.path" }.join(" ")
+
+        def d8 = isWin ? "d8.bat" : "d8"
+
+        "$d8 $dependencies --min-api 21 --output ${projectName}Android.jar ${projectName}Desktop.jar"
+                .execute(null, new File("build/libs")).waitForProcessOutput(System.out, System.err)
+    }
+}
+
+jar{
+    archiveFileName = "${project.name}Desktop.jar"
+
+    from{
+        configurations.runtimeClasspath.collect{ it.isDirectory() ? it : zipTree(it) }
+    }
 
     from(projectDir){
-        include("mod.hjson")
-        include("icon.png")
+        include "mod.hjson"
     }
 
     from("assets/"){
-        include("**")
+        include "**"
     }
 }
 
-val jarAndroid = tasks.register("jarAndroid"){
-    dependsOn(tasks.jar)
+tasks.register('deploy', Jar){
+    def projectName = project.name
+    dependsOn jarAndroid
+    dependsOn jar
+    archiveFileName = "${projectName}.jar"
+
+    from{ [zipTree("build/libs/${projectName}Desktop.jar"), zipTree("build/libs/${projectName}Android.jar")] }
 
     doLast{
-        val sdk = sdkRoot?.let{ File(it) }
-        if(sdk == null || !sdk.exists()){
-            throw GradleException("No valid Android SDK found. Ensure that ANDROID_HOME is set to your Android SDK directory.")
+        delete{
+            delete "build/libs/${projectName}Android.jar"
         }
-
-        val platformRoot = File(sdk, "platforms").listFiles()
-            ?.sortedDescending()
-            ?.firstOrNull{ File(it, "android.jar").exists() }
-            ?: throw GradleException("No android.jar found. Ensure that you have an Android platform installed.")
-
-        //collect dependencies needed for desugaring
-        val classpath = (configurations.compileClasspath.get().files +
-                configurations.runtimeClasspath.get().files +
-                File(platformRoot, "android.jar"))
-
-        val d8 = if(isWindows) "d8.bat" else "d8"
-
-        val command = buildList{
-            add(d8)
-            classpath.forEach{ addAll(listOf("--classpath", it.path)) }
-            addAll(listOf("--min-api", "21"))
-            addAll(listOf("--output", "${projectName}Android.jar"))
-            add("${projectName}Desktop.jar")
-        }
-
-        //dex and desugar files - this requires d8 in your PATH
-        val exitCode = ProcessBuilder(command)
-            .directory(layout.buildDirectory.dir("libs").get().asFile)
-            .inheritIO()
-            .start()
-            .waitFor()
-
-        if(exitCode != 0) throw GradleException("d8 failed with exit code $exitCode")
-    }
-}
-
-tasks.register<Jar>("deploy"){
-    dependsOn(jarAndroid, tasks.jar)
-    archiveFileName.set("$projectName.jar")
-
-    val libs = layout.buildDirectory.dir("libs")
-    from(provider{
-        listOf(
-            zipTree(libs.get().file("${projectName}Desktop.jar")),
-            zipTree(libs.get().file("${projectName}Android.jar"))
-        )
-    })
-
-    doLast{
-        libs.get().file("${projectName}Android.jar").asFile.delete()
     }
 }
